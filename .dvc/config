@@ -1,0 +1,6 @@
+[core]
+    autostage = true
+    remote = azure
+['remote "azure"']
+    url = azure://qurating/dvc
+    account_name = fabcontentcurationsa
