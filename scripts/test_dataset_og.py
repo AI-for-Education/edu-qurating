@@ -77,7 +77,7 @@ print(n_samples.sum())
 
 # %%
 #### shuffle shards separately
-buffer_size = 1000
+buffer_size = 10000
 main_seed = 72353534
 rng = np.random.default_rng(seed=main_seed)
 config_seeds = rng.integers(low=0, high=2 ^ 32 - 1, size=len(fw_sharded))
@@ -94,17 +94,17 @@ for (config, fw_), config_seed in zip(tqdm(fw_sharded.items()), config_seeds):
 
 # %%
 ### draw samples from each shard according to n_samples distribution
+def take_ns(ds, ns):
+    if ns > 0:
+        return list(ds.take(ns))
 
 ### flatten shards
 flat_shards = reduce(
     lambda a, b: a + b, [ds_list for ds_list in fw_sharded_shuffled.values()]
 )
 
-p = Parallel(n)
-samples = []
-for n_s, ds in zip(tqdm(n_samples), flat_shards):
-    if n_s > 0:
-        samples.extend(list(ds.take(n_s)))
+p = Parallel(n_jobs=50, verbose=80)
+samples = p(delayed(take_ns)(ds, ns) for ds, ns in zip(flat_shards, n_samples))
 
 
 # %%
