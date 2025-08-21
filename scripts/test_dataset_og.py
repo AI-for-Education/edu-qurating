@@ -18,7 +18,7 @@ print(configs)
 print(len(configs))
 
 # get last n_configs for testing
-n_configs = 40
+n_configs = len(configs)
 use_configs = configs[-1 : -n_configs - 1 : -1]
 print(use_configs)
 
@@ -66,7 +66,7 @@ index_probability = np.hstack([shard_prob for shard_prob in fw_sharded_ratio.val
 
 # %%
 ### sample the number from each config / shard from a multinomial with p = index_probability
-n = 500
+n = 5000
 rng = np.random.default_rng(seed=2163454098)
 n_samples = rng.multinomial(n=n, pvals=index_probability, size=1).ravel()
 
@@ -92,19 +92,38 @@ for (config, fw_), config_seed in zip(tqdm(fw_sharded.items()), config_seeds):
             shard.shuffle(seed=shard_seed, buffer_size=buffer_size)
         )
 
+
 # %%
 ### draw samples from each shard according to n_samples distribution
-def take_ns(ds, ns):
+def take_ns(ds, ns, shard_info):
     if ns > 0:
-        return list(ds.take(ns))
+        try:
+            return list(ds.take(ns)), shard_info
+        except:
+            return None, shard_info
+
 
 ### flatten shards
 flat_shards = reduce(
     lambda a, b: a + b, [ds_list for ds_list in fw_sharded_shuffled.values()]
 )
+flat_shard_info = reduce(
+    lambda a, b: a + b,
+    [
+        [{"config": config, "shard": i} for i in range(len(ds_list))]
+        for config, ds_list in fw_sharded_shuffled.items()
+    ],
+)
 
+print(len(flat_shards))
+
+st = time.perf_counter()
 p = Parallel(n_jobs=50, verbose=80)
-samples = p(delayed(take_ns)(ds, ns) for ds, ns in zip(flat_shards, n_samples))
+samples = p(
+    delayed(take_ns)(ds, ns, shard_info)
+    for ds, ns, shard_info in zip(flat_shards, n_samples, flat_shard_info)
+)
+print(time.perf_counter() - st)
 
 
 # %%
