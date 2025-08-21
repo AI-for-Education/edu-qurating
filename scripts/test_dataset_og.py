@@ -2,7 +2,7 @@
 import time
 from functools import reduce
 
-from datasets import load_dataset, get_dataset_config_names
+from datasets import load_dataset, get_dataset_config_names, Dataset
 from transformers import AutoTokenizer
 import argparse
 import numpy as np
@@ -10,6 +10,7 @@ from tqdm import tqdm
 from joblib import Parallel, delayed
 
 from qurating.prompting.openai_util import query_openai
+from qurating.constants import DATASETS_DIR
 
 # %%
 configs = get_dataset_config_names("airtrain-ai/fineweb-edu-fortified")
@@ -118,78 +119,108 @@ flat_shard_info = reduce(
 print(len(flat_shards))
 
 st = time.perf_counter()
-p = Parallel(n_jobs=50, verbose=80)
+p = Parallel(n_jobs=50, verbose=80, backend="threading")
 samples = p(
     delayed(take_ns)(ds, ns, shard_info)
     for ds, ns, shard_info in zip(flat_shards, n_samples, flat_shard_info)
 )
 print(time.perf_counter() - st)
 
+retry_info = [s[1] for s in samples if s is not None and s[0] is None]
+
+st = time.perf_counter()
+p = Parallel(n_jobs=50, verbose=80, backend="threading")
+retry_samples = p(
+    delayed(take_ns)(ds, ns, shard_info)
+    for ds, ns, shard_info in zip(flat_shards, n_samples, flat_shard_info)
+    if shard_info in retry_info
+)
+print(time.perf_counter() - st)
+
+fixed_samples = []
+for s in samples:
+    if s is not None:
+        if s[0] is None:
+            cand = [srep for srep in retry_samples if srep[1] == s[1]]
+            assert len(cand) == 1
+            cand = cand[0]
+            if cand[0] is not None:
+                s = cand
+    fixed_samples.append(s)
 
 # %%
-### get first n ids from each dataset
-n = 50000
-fw_first_ids = {}
-for config, fw_ in tqdm(fw.items()):
-    fw_first_ids[config] = [row["id"] for row in fw_.select_columns("id").take(5000)]
+nzsamples = [s for s in fixed_samples if s is not None]
 
-# %%
-### shuffle datasets and see how many ids are taken from the first n
-### shuffle on dataset after applying skip(0) to ensure that the shards aren't shuffled
-### for the test
-buffer_sizes = [1000, 10000, 100000]
-for buffer_size in buffer_sizes:
-    print(f"buffer size: {buffer_size}")
-    shuff_first_ids = {}
-    for config, fw_ in tqdm(fw.items()):
-        shuff = fw_.skip(0).shuffle(seed=72353534, buffer_size=buffer_size)
-        shuff_first_ids[config] = [
-            row["id"] for row in shuff.select_columns("id").take(5000)
-        ]
+sampled_ds = Dataset.from_list([d for s in nzsamples if s[0] is not None for d in s[0]])
 
-    intersect_first_ids = {}
-    for config in fw:
-        intersect_first_ids[config] = set(shuff_first_ids[config]).intersection(
-            set(fw_first_ids[config])
-        )
-        print(len(intersect_first_ids[config]) / len(shuff_first_ids[config]))
+sampled_ds.to_parquet(
+    DATASETS_DIR / f"fwe-fortified_sampled-{n}_seed-{main_seed}.parquet"
+)
 
-# %%
-### sample trials
-rng = np.random.default_rng(seed=72353534)
+# # %%
+# ### get first n ids from each dataset
+# n = 50000
+# fw_first_ids = {}
+# for config, fw_ in tqdm(fw.items()):
+#     fw_first_ids[config] = [row["id"] for row in fw_.select_columns("id").take(5000)]
 
-sampidx = rng.permutation(fw_len)
+# # %%
+# ### shuffle datasets and see how many ids are taken from the first n
+# ### shuffle on dataset after applying skip(0) to ensure that the shards aren't shuffled
+# ### for the test
+# buffer_sizes = [1000, 10000, 100000]
+# for buffer_size in buffer_sizes:
+#     print(f"buffer size: {buffer_size}")
+#     shuff_first_ids = {}
+#     for config, fw_ in tqdm(fw.items()):
+#         shuff = fw_.skip(0).shuffle(seed=72353534, buffer_size=buffer_size)
+#         shuff_first_ids[config] = [
+#             row["id"] for row in shuff.select_columns("id").take(5000)
+#         ]
 
-for i in sampidx[:100]:
-    print(i)
-    samp = fw.skip(i)
-    print(next(iter(samp))["dump"])
+#     intersect_first_ids = {}
+#     for config in fw:
+#         intersect_first_ids[config] = set(shuff_first_ids[config]).intersection(
+#             set(fw_first_ids[config])
+#         )
+#         print(len(intersect_first_ids[config]) / len(shuff_first_ids[config]))
 
-# %%
-ds = fw.select_columns("text")
-samp = ds.skip(86000)
-print(next(iter(samp)))
+# # %%
+# ### sample trials
+# rng = np.random.default_rng(seed=72353534)
 
-# %%
-### test built-in shuffle
-batch_size = 1
-rawi = 50000
-maxi = np.ceil(rawi / batch_size)
-shuff = fw.shuffle(seed=72353534, buffer_size=10000).batch(batch_size=batch_size)
+# sampidx = rng.permutation(fw_len)
 
-st_global = time.perf_counter()
-st = st_global
-for i, samp in enumerate(shuff):
-    if i > maxi:
-        break
-    print(i)
-    print(samp["dump"])
-    print(time.perf_counter() - st)
-    st = time.perf_counter()
+# for i in sampidx[:100]:
+#     print(i)
+#     samp = fw.skip(i)
+#     print(next(iter(samp))["dump"])
 
-final_time = time.perf_counter() - st_global
-print(final_time)
-print(final_time / (maxi * batch_size))
+# # %%
+# ds = fw.select_columns("text")
+# samp = ds.skip(86000)
+# print(next(iter(samp)))
 
-# %%
-from qurating.prompting.score_pairwise import Comparator
+# # %%
+# ### test built-in shuffle
+# batch_size = 1
+# rawi = 50000
+# maxi = np.ceil(rawi / batch_size)
+# shuff = fw.shuffle(seed=72353534, buffer_size=10000).batch(batch_size=batch_size)
+
+# st_global = time.perf_counter()
+# st = st_global
+# for i, samp in enumerate(shuff):
+#     if i > maxi:
+#         break
+#     print(i)
+#     print(samp["dump"])
+#     print(time.perf_counter() - st)
+#     st = time.perf_counter()
+
+# final_time = time.perf_counter() - st_global
+# print(final_time)
+# print(final_time / (maxi * batch_size))
+
+# # %%
+# from qurating.prompting.score_pairwise import Comparator
