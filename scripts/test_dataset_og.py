@@ -9,7 +9,7 @@ import numpy as np
 from tqdm import tqdm
 from joblib import Parallel, delayed
 
-from qurating.prompting.openai_util import query_openai
+from qurating.prompting.llm_util import query_model
 from qurating.constants import DATASETS_DIR
 
 # %%
@@ -67,7 +67,7 @@ index_probability = np.hstack([shard_prob for shard_prob in fw_sharded_ratio.val
 
 # %%
 ### sample the number from each config / shard from a multinomial with p = index_probability
-n = 5000
+n = 10000
 rng = np.random.default_rng(seed=2163454098)
 n_samples = rng.multinomial(n=n, pvals=index_probability, size=1).ravel()
 
@@ -78,9 +78,11 @@ print(n_samples.sum())
 
 # %%
 #### shuffle shards separately
-buffer_size = 10000
+buffer_size = n * 2
 main_seed = 72353534
 rng = np.random.default_rng(seed=main_seed)
+shard_order_seed = rng.integers(low=0, high=2 ^ 32 - 1)
+shard_order_rng = np.random.default_rng(seed=shard_order_seed)
 config_seeds = rng.integers(low=0, high=2 ^ 32 - 1, size=len(fw_sharded))
 
 fw_sharded_shuffled = {}
@@ -150,10 +152,16 @@ for s in samples:
 
 # %%
 nzsamples = [s for s in fixed_samples if s is not None]
+dataset_list = shard_order_rng.permuted(
+    [d for s in nzsamples if s[0] is not None for d in s[0]]
+).tolist()
 
-sampled_ds = Dataset.from_list([d for s in nzsamples if s[0] is not None for d in s[0]])
+sampled_ds = Dataset.from_list(dataset_list)
 
-sampled_ds.to_parquet(
+## final shuffle of samples within original shards
+sampled_ds_final_shuffled = sampled_ds.shuffle().flatten_indices(keep_in_memory=True)
+
+sampled_ds_final_shuffled.to_parquet(
     DATASETS_DIR / f"fwe-fortified_sampled-{n}_seed-{main_seed}.parquet"
 )
 

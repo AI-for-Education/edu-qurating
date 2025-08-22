@@ -3,7 +3,10 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/qurating"]
+packages = ["src/qurating", "src/qurating/prompting/templates/*.txt"]
+
+[tool.uv.sources]
+fabdata-llm = { git = "https://github.com/AI-for-Education/fabdata-llm.git", rev = "main" }
 
 [project]
 name = "fab-qurating"
@@ -12,12 +15,14 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12, <3.13"
 dependencies = [
-    "anthropic>=0.60.0",
+    "anthropic",
     "datasets>=4.0.0",
+    "fabdata-llm==0.28.1",
     "joblib>=1.5.1",
     "numpy>=2.3.2",
-    "openai>=1.97.1",
-    "tiktoken>=0.9.0",
+    "openai",
+    "pydantic>=2.11.7",
+    "tiktoken",
     "tqdm>=4.67.1",
     "transformers>=4.54.0",
 ]
@@ -28,4 +33,5 @@ dev = [
     "dvc-azure>=3.1.0",
     "ipykernel>=6.29.5",
     "ipywidgets>=8.1.7",
+    "nest-asyncio>=1.6.0",
 ]
