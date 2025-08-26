@@ -56,7 +56,7 @@ async def aquery_model(
     system_prompt: str = None,
     generations: int = 1,
     retries: int = 1,
-    log_file_path: int = "openai_api_cost.jsonl",
+    log_file_path: str = "openai_api_cost.jsonl",
 ) -> List[str]:
     if generations > 1:
         return [

@@ -6,6 +6,7 @@ import numpy as np
 from fdllm import get_caller
 
 from .llm_util import query_model, aquery_model
+from ..constants import LOG_DIR
 
 
 class Comparator:
@@ -125,6 +126,7 @@ class Comparator:
                     caller,
                     system_prompt=self.args.system_prompt,
                     generations=self.args.generations,
+                    log_file_path=str(LOG_DIR / "api_cost.jsonl")
                 )
 
                 for vote in self.parse_generations(generations):

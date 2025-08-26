@@ -7,3 +7,5 @@ DATASETS_DIR = DATA_DIR / "datasets"
 RESULTS_DIR = DATA_DIR / "results"
 
 TEMPLATES_DIR = Path(__file__).parent / "prompting" / "templates"
+
+LOG_DIR = ROOT / "logs"
