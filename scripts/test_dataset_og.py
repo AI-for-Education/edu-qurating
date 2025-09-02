@@ -67,7 +67,7 @@ index_probability = np.hstack([shard_prob for shard_prob in fw_sharded_ratio.val
 
 # %%
 ### sample the number from each config / shard from a multinomial with p = index_probability
-n = 10000
+n = 20000
 rng = np.random.default_rng(seed=2163454098)
 n_samples = rng.multinomial(n=n, pvals=index_probability, size=1).ravel()
 
@@ -78,7 +78,7 @@ print(n_samples.sum())
 
 # %%
 #### shuffle shards separately
-buffer_size = n * 2
+buffer_size = max(n * 2, 20000)
 main_seed = 72353534
 rng = np.random.default_rng(seed=main_seed)
 shard_order_seed = rng.integers(low=0, high=2 ^ 32 - 1)
@@ -120,8 +120,9 @@ flat_shard_info = reduce(
 
 print(len(flat_shards))
 
+njobs = int(40 / (0.8 * (buffer_size / 10000)))
 st = time.perf_counter()
-p = Parallel(n_jobs=50, verbose=80, backend="threading")
+p = Parallel(n_jobs=njobs, verbose=80, backend="threading")
 samples = p(
     delayed(take_ns)(ds, ns, shard_info)
     for ds, ns, shard_info in zip(flat_shards, n_samples, flat_shard_info)

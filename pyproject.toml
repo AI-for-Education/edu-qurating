@@ -7,6 +7,13 @@ packages = ["src/qurating", "src/qurating/prompting/templates/*.txt"]
 
 [tool.uv.sources]
 fabdata-llm = { git = "https://github.com/AI-for-Education/fabdata-llm.git", rev = "main" }
+torch = { index = "pytorch" }
+torchvision = { index = "pytorch" }
+
+[[tool.uv.index]]
+name = "pytorch"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
 
 [project]
 name = "fab-qurating"
@@ -15,14 +22,18 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12, <3.13"
 dependencies = [
-    "anthropic",
+    "anthropic>=0.49.0",
     "datasets>=4.0.0",
     "fabdata-llm==0.28.1",
     "joblib>=1.5.1",
+    "matplotlib>=3.10.5",
     "numpy>=2.3.2",
     "openai",
+    "peft>=0.17.1",
     "pydantic>=2.11.7",
     "tiktoken",
+    "torch>=2.8.0",
+    "torchvision>=0.23.0",
     "tqdm>=4.67.1",
     "transformers>=4.54.0",
 ]

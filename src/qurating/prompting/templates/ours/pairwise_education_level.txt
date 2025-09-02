@@ -1,0 +1,19 @@
+Compare two text excerpts and choose the text which presents content at a higher *educational level*. Consider the technical level of the content, required prior knowledge, and the educational stage at which these ideas would typically be introduced (i.e. pre-primary, primary, secondary, undergraduate university, postgraduate university, active research or specific professions). Focus on just the educational level of the content and not the factual accuracy, pedagogical structure or learner engagement.
+
+Aspects that should NOT influence your judgement:
+1. Which language the text is written in
+2. The length of the text
+3. The order in which the texts are presented
+
+Note that the texts are cut off, so you have to infer their contexts.
+The texts might have similar quality, but you should still make a relative judgement and choose the label of the preferred text.
+
+[Option {label_a}]
+... {text_a} ...
+
+
+[Option {label_b}]
+... {text_b} ...
+
+
+Now you have to choose between either {label_a} or {label_b}. Respond only with a single word.

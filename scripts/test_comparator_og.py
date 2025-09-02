@@ -3,7 +3,7 @@ import sys
 from argparse import ArgumentParser
 
 from fdllm import register_models
-from datasets import load_dataset, get_dataset_config_names, Dataset
+from datasets import concatenate_datasets, Dataset
 import nest_asyncio
 
 from qurating.prompting.score_pairwise import Comparator
@@ -13,7 +13,7 @@ nest_asyncio.apply()
 
 register_models(ROOT / "custom_models.yaml")
 
-n_samples = 10000
+n_samples = 20000
 seed = 72353534
 
 dataset_base = f"fwe-fortified_sampled-{n_samples}_seed-{seed}"
@@ -25,35 +25,69 @@ dataset = Dataset.from_parquet(
 )
 
 # %%
-NUM_EXAMPLES = 2000
+NUM_EXAMPLES = 500
 TOKENS_MAX = 16000
 MODEL = "gpt-4.1-mini"
+
+use_templates_dir = TEMPLATES_DIR / "ours"
 
 parser = ArgumentParser()
 Comparator.add_args(parser)
 
-template_files = TEMPLATES_DIR.glob("pairwise_*.txt")
+template_files = use_templates_dir.glob("pairwise_*.txt")
 
 results_base = dataset_base
+results_dict = {}
 for template_file in template_files:
-    template_base = template_file.stem
+    if template_file.parent != TEMPLATES_DIR:
+        template_parent = template_file.parent.name
+    else:
+        template_parent = "default"
+    template_base = f"{template_parent}/{template_file.stem}"
     print(template_base)
-    
+
     out_dir = RESULTS_DIR / results_base / template_base
-    result_filename = f"{MODEL}_nexamples-{NUM_EXAMPLES}.parquet"
+    result_path = out_dir / f"{MODEL}_nexamples-{NUM_EXAMPLES}.parquet"
+    if not result_path.exists():
+        arg_strs = [
+            f"--template_file {template_file}",
+            f"--model {MODEL}",
+            f"--tokens_max {TOKENS_MAX}",
+            f"--num_examples {NUM_EXAMPLES}",
+        ]
 
-    arg_strs = [
-        f"--template_file {template_file}",
-        f"--model {MODEL}",
-        f"--tokens_max {TOKENS_MAX}",
-        f"--num_examples {NUM_EXAMPLES}",
-    ]
+        args = parser.parse_args([arg for argstr in arg_strs for arg in argstr.split()])
 
-    args = parser.parse_args([arg for argstr in arg_strs for arg in argstr.split()])
+        comp = Comparator(args)
 
-    comp = Comparator(args)
+        output = comp.apply(dataset)
 
-    output = comp.apply(dataset)
+        out_dir.mkdir(exist_ok=True, parents=True)
+        output.to_parquet(result_path)
 
-    out_dir.mkdir(exist_ok=True, parents=True)
-    output.to_parquet(out_dir / result_filename)
+    results_ds = Dataset.from_parquet(str(out_dir / result_path))
+    results_dict[template_file.stem] = results_ds
+
+# %%
+shared_columns = ["texts", "indices", "examples"]
+datasets = []
+for template_name, dataset in results_dict.items():
+    prefix = "_".join(template_name.split("_")[1:])
+    for column in dataset.column_names:
+        if column not in shared_columns:
+            dataset = dataset.rename_column(column, prefix + "_" + column)
+    datasets.append(dataset)
+
+for shared_column in shared_columns:
+    assert all(ds[shared_column] == datasets[0][shared_column] for ds in datasets[1:])
+    datasets = [datasets[0]] + [ds.remove_columns(shared_column) for ds in datasets[1:]]
+
+dataset: Dataset = concatenate_datasets(datasets, axis=1)
+
+outfile = out_dir = (
+    RESULTS_DIR
+    / results_base
+    / template_parent
+    / f"combined_{MODEL}_nexamples-{NUM_EXAMPLES}.parquet"
+)
+dataset.to_parquet(outfile)
