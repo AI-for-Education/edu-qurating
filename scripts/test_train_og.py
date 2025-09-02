@@ -1,23 +1,42 @@
+"""
+Script to test and help to understand the process of going from pairwise judgements
+to rating scores for each judgement criterion.
+
+Contains excerpts of code from upstream training package
+"""
+
 # %%
-import sys
-from argparse import ArgumentParser
 from typing import Any, Dict
 from collections import namedtuple
 
-from fdllm import register_models
-from datasets import concatenate_datasets, Dataset
+from datasets import Dataset
 from transformers import AutoTokenizer, AutoModelForSequenceClassification, AutoConfig
-import nest_asyncio
 import torch
 import matplotlib.pyplot as plt
 
-from qurating.constants import DATASETS_DIR, TEMPLATES_DIR, RESULTS_DIR, ROOT
-
-nest_asyncio.apply()
-
-register_models(ROOT / "custom_models.yaml")
+from qurating.constants import RESULTS_DIR
 
 
+"""
+DataCollator is the class that is responsible for taking batches from input dataset and returning input
+to the model. Taken from training.train_preference_model.
+
+After instantiation, it is passed as the "data_collator" parameter to transformers.trainer.Trainer (which
+is subclassed by training.train_preference_model.PreferenceTrainer.
+
+Returns a dict of:
+    "input_ids": [n_rows*2, token_window] tensor of token indices for each pair of texts in the input batch.
+        Each row of the input batch consists of a pair of texts, but these are separated here, such that
+        each row of "input_ids" is a distint text.
+    "attention_mask": haven't investigated the details of this one but I think it is probably uniform ones
+        and same dimensions as "input_ids". Need to check.
+    "labels": [nrows*2, nrows*2, nlabels] tensor of pairwise probabilities of selecting text i over text j on 
+        criterion k.
+        Each row of the input batch contains the [2 x 2 x nlabels] choice probabilities associated with the pair 
+        of texts corresponding to that row. This [2 x 2 x nlabels] tensor is inserted at the slice [i*2:i*2+1, i*2:i*2+1, :]
+        for row i of the input (in other words, the 2 x 2 square centred on ith the diagional element). All elements of
+        the output tensor outside of this area around the diagonal are treated as missing data for the loss calculation.
+"""
 class DataCollator:
     def __init__(self, args, training_args, tokenizer):
         self.args = args
@@ -69,17 +88,18 @@ class DataCollator:
 
 
 # %%
+## load the tokenizer for Sheared-LLaMa-1.3b
+
 tokenizer = AutoTokenizer.from_pretrained(
     "princeton-nlp/Sheared-LLaMA-1.3b",
-    # cache_dir=args.cache_dir,
     use_fast=True,
-    # revision=args.model_revision,
-    # use_auth_token=True if args.use_auth_token else None,
     legacy=False,
 )
 tokenizer.pad_token_id = 0
 
 # %%
+## load the preferences dataset
+
 n_samples = 20000
 seed = 72353534
 
@@ -96,8 +116,14 @@ dataset_file = (
 )
 
 dataset = Dataset.from_parquet(str(dataset_file))
+
+# get the label names from the dataset (i.e. the criterion names)
 label_names = [col for col in dataset.column_names if col.endswith("_average")]
+
 # %%
+# instantiate DataCollator
+
+# this namedtuple is just a hack to pass in an object that functions like args from ArgumentParser
 argstup = namedtuple(
     "args", ["max_length", "text_field", "label_field", "single_label_ablation"]
 )
@@ -110,25 +136,42 @@ args = argstup(
 dc = DataCollator(args, (), tokenizer=tokenizer)
 
 # %%
+# load config for Sheared-LLaMA-1.3b
 config = AutoConfig.from_pretrained("princeton-nlp/Sheared-LLaMA-1.3b")
-# config = AutoConfig.from_pretrained("princeton-nlp/QuRater-1.3B")
+# adjust the number of output labels to match
+config.num_labels = len(label_names)
 
-# config.id2label = {str(i): f"LABEL_{i}" for i in range(len(label_names))}
-# config.label2id = {f"LABEL_{i}": str(i) for i in range(len(label_names))}
-config.num_labels = 6
+# instantiate model from updated config
 model = AutoModelForSequenceClassification.from_pretrained(
     "princeton-nlp/Sheared-LLaMA-1.3b", config=config
 )
-# model.score = torch.nn.modules.linear.Linear(in_features=2048, out_features=6, bias=False)
 
 # %%
+# pass first 4 rows of dataset to DataCollator
 collected = dc(dataset.take(4))
 
+# take a quick look at the output
 plt.imshow(collected["labels"][:, :, 0], vmin=0, vmax=1)
 plt.colorbar()
 
-labels = collected.pop("labels")
-outputs = model(**collected, use_cache=False)
-
 # %%
+# pop labels from collected outputs (these are not inputs to the model)
+labels = collected.pop("labels")
+
+"""
+They are used in loss calculation in training.train_preference_model.PreferenceTrainer.compute_loss
+(lines 235 -239 are the key lines that convert the logits output of the model to target preference 
+probabilities for comparison with labels):
+    ```
+       labels = inputs.pop("labels")
+       outputs = model(**inputs, use_cache=False)
+       logit_diffs = outputs.logits.unsqueeze(0) - outputs.logits.unsqueeze(1)
+
+       probs = logit_diffs.float().sigmoid()
+    ```
+"""
+
+# run inference on the inputs
+outputs = model(**collected, use_cache=False)
+# convert the logits (ntexts x nlabels) to pairwise preference probablities (ntexts x ntexts x nlabels)
 logit_diffs = outputs.logits.unsqueeze(0) - outputs.logits.unsqueeze(1)
