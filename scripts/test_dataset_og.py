@@ -1,29 +1,63 @@
+"""
+Script to approximately randomly sample from large fineweb-edu-fortified dataset.
+The dataset is actually split over 95 different datasets, each corresponding to 
+a different dump of the common crawl.
+
+Each of these datsets is further split into ~20-50 shards.
+
+Due to the size of the datasets, we load as a streaming dataset, which complicates
+randomization. Randomization of streaming datasets relies on a buffer which is filled
+in memory. This buffer is filled *in order*, such that a buffer of size n will be initially
+filled with the first n rows of the dataset. Samples are drawn randomly from the buffer, and
+the buffer is filled with the next rows in order after each sample is taken. Shards are also 
+randomised, but importantly, the buffer still fills with contiguous rows from the same shard.
+
+The only way to get true randomisation is if buffer_size == n_rows.
+
+The way that we try to approximate better randomness is as follows:
+
+- split each dataset manually into shards
+- get the number of rows in each shard of each dataset
+- calculate the total number of rows over all datasets x shards
+- calculate sampling probability from each dataset x shard as n_ds_shard / n_total
+- convert this to n_samples_ds_shard by sampling from a multinomial distribution
+- iterate over each dataset x shard and apply the streaming dataset shuffle method,
+    with a buffer of no larger than 20000 rows
+- take the first n_samples_ds_shard from each shuffled dataset x shard
+- concatenate all of this together into a single new dataset in memory
+- shuffle the rows (true shuffle) of this dataset to interleave rows between shards
+
+The benefit of this approach over the built-in streaming shuffle is that the final shuffled dataset
+is no longer necessarily contiguous within shards.
+"""
+
 # %%
 import time
 from functools import reduce
 
 from datasets import load_dataset, get_dataset_config_names, Dataset
-from transformers import AutoTokenizer
-import argparse
 import numpy as np
 from tqdm import tqdm
 from joblib import Parallel, delayed
 
-from qurating.prompting.llm_util import query_model
 from qurating.constants import DATASETS_DIR
 
 # %%
+### configs are the different datasets (95, corresponding to CC dumps)
+
 configs = get_dataset_config_names("airtrain-ai/fineweb-edu-fortified")
 
 print(configs)
 print(len(configs))
 
 # get last n_configs for testing
+### NOTE: in fact, changed this now so we just take all of them
 n_configs = len(configs)
 use_configs = configs[-1 : -n_configs - 1 : -1]
 print(use_configs)
 
 # %%
+# load each dataset by config name as a streaming dataset into the dict fw
 fw = {}
 for config in use_configs:
     fw[config] = load_dataset(
@@ -34,15 +68,16 @@ for config in use_configs:
     )
 
 # %%
-### length of dataset
+### length of each dataset
 fw_len = {config: fw_.info.splits["train"].num_examples for config, fw_ in fw.items()}
+# number of shards in each dataset
 fw_nshards = {config: fw_.num_shards for config, fw_ in fw.items()}
 
 print(fw_len)
 print(fw_nshards)
 
 # %%
-### manually split datasets into shards
+### manually split datasets into shards and get the number of rows in each shard
 fw_sharded = {}
 fw_sharded_len = {}
 for config, fw_ in tqdm(fw.items()):
@@ -97,7 +132,7 @@ for (config, fw_), config_seed in zip(tqdm(fw_sharded.items()), config_seeds):
 
 
 # %%
-### draw samples from each shard according to n_samples distribution
+### function to draw samples from each shard according to n_samples distribution
 def take_ns(ds, ns, shard_info):
     if ns > 0:
         try:
@@ -120,6 +155,9 @@ flat_shard_info = reduce(
 
 print(len(flat_shards))
 
+## use joblib with threading to sample from the shards concurrently.
+# As the main bottleneck is downloading the data to fill the buffer, threading
+# a decent speed up. Didn't observe much additional improvement with multi-processing.
 njobs = int(40 / (0.8 * (buffer_size / 10000)))
 st = time.perf_counter()
 p = Parallel(n_jobs=njobs, verbose=80, backend="threading")
@@ -166,70 +204,3 @@ sampled_ds_final_shuffled.to_parquet(
     DATASETS_DIR / f"fwe-fortified_sampled-{n}_seed-{main_seed}.parquet"
 )
 
-# # %%
-# ### get first n ids from each dataset
-# n = 50000
-# fw_first_ids = {}
-# for config, fw_ in tqdm(fw.items()):
-#     fw_first_ids[config] = [row["id"] for row in fw_.select_columns("id").take(5000)]
-
-# # %%
-# ### shuffle datasets and see how many ids are taken from the first n
-# ### shuffle on dataset after applying skip(0) to ensure that the shards aren't shuffled
-# ### for the test
-# buffer_sizes = [1000, 10000, 100000]
-# for buffer_size in buffer_sizes:
-#     print(f"buffer size: {buffer_size}")
-#     shuff_first_ids = {}
-#     for config, fw_ in tqdm(fw.items()):
-#         shuff = fw_.skip(0).shuffle(seed=72353534, buffer_size=buffer_size)
-#         shuff_first_ids[config] = [
-#             row["id"] for row in shuff.select_columns("id").take(5000)
-#         ]
-
-#     intersect_first_ids = {}
-#     for config in fw:
-#         intersect_first_ids[config] = set(shuff_first_ids[config]).intersection(
-#             set(fw_first_ids[config])
-#         )
-#         print(len(intersect_first_ids[config]) / len(shuff_first_ids[config]))
-
-# # %%
-# ### sample trials
-# rng = np.random.default_rng(seed=72353534)
-
-# sampidx = rng.permutation(fw_len)
-
-# for i in sampidx[:100]:
-#     print(i)
-#     samp = fw.skip(i)
-#     print(next(iter(samp))["dump"])
-
-# # %%
-# ds = fw.select_columns("text")
-# samp = ds.skip(86000)
-# print(next(iter(samp)))
-
-# # %%
-# ### test built-in shuffle
-# batch_size = 1
-# rawi = 50000
-# maxi = np.ceil(rawi / batch_size)
-# shuff = fw.shuffle(seed=72353534, buffer_size=10000).batch(batch_size=batch_size)
-
-# st_global = time.perf_counter()
-# st = st_global
-# for i, samp in enumerate(shuff):
-#     if i > maxi:
-#         break
-#     print(i)
-#     print(samp["dump"])
-#     print(time.perf_counter() - st)
-#     st = time.perf_counter()
-
-# final_time = time.perf_counter() - st_global
-# print(final_time)
-# print(final_time / (maxi * batch_size))
-
-# # %%
-# from qurating.prompting.score_pairwise import Comparator
