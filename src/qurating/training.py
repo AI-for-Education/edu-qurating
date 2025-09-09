@@ -1,11 +1,10 @@
-"""Preference trainer for QuRating models."""
+"""Consolidated training utilities for QuRating preference models."""
 
 import torch
 from dataclasses import dataclass, field
 from typing import Dict, Any, List, Optional
 from transformers import Trainer, TrainingArguments as BaseTrainingArguments
 
-from .utils import confidence_mask, bce_with_temperature
 
 
 @dataclass
@@ -26,6 +25,108 @@ class TrainingArguments(BaseTrainingArguments):
             "help": "Confidence threshold for including data during training"
         },
     )
+
+
+def confidence_mask(labels, confidence):
+    """Create a mask for labels based on confidence threshold."""
+    return (labels - 0.5).abs() >= confidence / 2
+
+
+def bce_with_temperature(probs, labels, temperature=1.0):
+    """Binary cross-entropy loss with temperature scaling."""
+    probs = probs.clamp(min=0.0, max=1.0)
+    labels = labels.clamp(min=0.0, max=1.0)
+
+    if temperature != 1.0:
+        labels = (labels.logit() / temperature).sigmoid()
+
+    return torch.nn.functional.binary_cross_entropy(probs, labels)
+
+
+
+def label_filter(example, label_field: List[str]):
+    """Filter examples that have valid labels."""
+    labels = torch.tensor([example[label] for label in label_field])
+    return not (labels == -100).all().item()
+
+
+def confidence_filter(example, label_field: List[str], confidence: float):
+    """Filter examples based on confidence threshold."""
+    labels = torch.tensor([example[label] for label in label_field])
+    return confidence_mask(labels[labels != -100], confidence).any().item()
+
+
+class LabelFilter:
+    """Filter examples that have valid labels."""
+    
+    def __init__(self, label_field: List[str]):
+        self.label_field = label_field
+
+    def __call__(self, example):
+        return label_filter(example, self.label_field)
+
+
+class ConfidenceFilter:
+    """Filter examples based on confidence threshold."""
+    
+    def __init__(self, label_field: List[str], confidence: float):
+        self.label_field = label_field
+        self.confidence = confidence
+
+    def __call__(self, example):
+        return confidence_filter(example, self.label_field, self.confidence)
+
+
+
+class DataCollator:
+    """Data collator for pairwise preference training."""
+    
+    def __init__(self, args, training_args, tokenizer):
+        self.args = args
+        self.training_args = training_args
+        self.tokenizer = tokenizer
+        self.tokenizer.padding_side = "left"
+        self.pad_token_id = self.tokenizer.pad_token_id
+        self.max_length = getattr(args, 'max_length', 512)
+
+    @torch.no_grad()
+    def __call__(self, features: Any) -> Dict[str, Any]:
+        batch = self.tokenizer(
+            sum([item[self.args.text_field] for item in features], []),
+            add_special_tokens=False,
+            truncation=True,
+            return_tensors="pt",
+            padding=True,
+            max_length=self.max_length,
+        )
+
+        bsz = batch.input_ids.size(0)
+        num_labels = len(self.args.label_field)
+        labels = -100 * torch.ones(bsz, bsz, num_labels, dtype=torch.float32)
+
+        counter = 0
+        for item in features:
+            k = len(item[self.args.text_field])
+            for i, label in enumerate(self.args.label_field):
+                labels[counter : counter + k, counter : counter + k, i] = torch.tensor(
+                    item[label], dtype=torch.float32
+                )
+            counter += k
+
+        # Handle single label ablation if specified
+        single_label_ablation = getattr(self.args, 'single_label_ablation', -1)
+        for i in range(labels.size(-1)):
+            if single_label_ablation >= 0 and i != single_label_ablation:
+                labels[:, :, i] = -100
+
+        labels[range(bsz), range(bsz)] = -100
+
+        return dict(
+            input_ids=batch.input_ids,
+            attention_mask=batch.attention_mask,
+            labels=labels,
+        )
+
 
 
 class PreferenceTrainer(Trainer):
