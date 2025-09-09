@@ -25,6 +25,7 @@ dependencies = [
     "anthropic>=0.49.0",
     "datasets>=4.0.0",
     "fabdata-llm==0.28.1",
+    "flash-attn>=2.0.0; sys_platform != 'darwin'",
     "joblib>=1.5.1",
     "matplotlib>=3.10.5",
     "numpy>=2.3.2",
@@ -45,4 +46,7 @@ dev = [
     "ipykernel>=6.29.5",
     "ipywidgets>=8.1.7",
     "nest-asyncio>=1.6.0",
+]
+flash-manual = [
+    "flash-attn>=2.0.0",  # Manual installation option for macOS users
 ]
