@@ -7,13 +7,9 @@ packages = ["src/qurating", "src/qurating/prompting/templates/*.txt"]
 
 [tool.uv.sources]
 fabdata-llm = { git = "https://github.com/AI-for-Education/fabdata-llm.git", rev = "main" }
-torch = { index = "pytorch" }
-torchvision = { index = "pytorch" }
 
-[[tool.uv.index]]
-name = "pytorch"
-url = "https://download.pytorch.org/whl/cpu"
-explicit = true
+[tool.uv.extra-build-dependencies]
+flash-attn = ["torch"]
 
 [project]
 name = "fab-qurating"
@@ -25,7 +21,6 @@ dependencies = [
     "anthropic>=0.49.0",
     "datasets>=4.0.0",
     "fabdata-llm==0.28.1",
-    "flash-attn>=2.0.0; sys_platform != 'darwin'",
     "joblib>=1.5.1",
     "matplotlib>=3.10.5",
     "numpy>=2.3.2",
@@ -33,11 +28,12 @@ dependencies = [
     "peft>=0.17.1",
     "pydantic>=2.11.7",
     "tiktoken",
-    "torch>=2.8.0",
-    "torchvision>=0.23.0",
     "tqdm>=4.67.1",
     "transformers>=4.54.0",
+    "torch>=2.7.0",
+    "torchvision>=0.22.0",
 ]
+
 
 [dependency-groups]
 dev = [
@@ -45,8 +41,7 @@ dev = [
     "dvc-azure>=3.1.0",
     "ipykernel>=6.29.5",
     "ipywidgets>=8.1.7",
-    "nest-asyncio>=1.6.0",
 ]
-flash-manual = [
-    "flash-attn>=2.0.0",  # Manual installation option for macOS users
-]
+
+[tool.uv]
+no-build-isolation-package = ['flash-attn']
