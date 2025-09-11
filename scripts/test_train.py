@@ -183,6 +183,7 @@ def load_dataset_and_setup_args(args):
         logger.error("Dataset validation failed. Cannot proceed.")
         logger.info("\nTo generate the required dataset, run:")
         logger.info("  uv run python scripts/test_dataset_og.py")
+        logger.info("  uv run python scripts/test_comparator_og.py")
         raise FileNotFoundError(f"Required dataset not found: {dataset_file}")
 
     # Load the dataset
@@ -194,6 +195,7 @@ def load_dataset_and_setup_args(args):
         raise
 
     # Get the label names from the dataset (i.e. the criterion names)
+    # TODO: this could be buggy, eg if column order changes
     label_names = [col for col in dataset.column_names if col.endswith("_average")]
     
     return dataset, label_names

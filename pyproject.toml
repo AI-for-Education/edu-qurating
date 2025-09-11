@@ -8,9 +8,6 @@ packages = ["src/qurating", "src/qurating/prompting/templates/*.txt"]
 [tool.uv.sources]
 fabdata-llm = { git = "https://github.com/AI-for-Education/fabdata-llm.git", rev = "main" }
 
-[tool.uv.extra-build-dependencies]
-flash-attn = ["torch"]
-
 [project]
 name = "fab-qurating"
 version = "0.1.0"

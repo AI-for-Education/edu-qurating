@@ -173,7 +173,7 @@ def main():
     parser.add_argument("-b", "--batch_size", type=int, default=16, help="Device batch size")
     parser.add_argument("--subset", type=int, default=None, help="Use only first N pairs (for testing)")
     parser.add_argument("--labels", type=str, nargs="+", 
-                       default=["factual_accuracy", "pedagogical_structure", "lesson_engagement"],
+                       default=["factual_accuracy", "pedagogical_structure", "lesson_engagement", "education_level", "education_level_primary", "education_level_secondary"],
                        help="Label names")
     
     args = parser.parse_args()
