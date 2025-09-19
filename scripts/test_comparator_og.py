@@ -26,10 +26,10 @@ dataset = Dataset.from_parquet(
 
 # %%
 NUM_EXAMPLES = 500
-TOKENS_MAX = 16000
+TOKENS_MAX = 512
 MODEL = "gpt-4.1-mini"
 
-use_templates_dir = TEMPLATES_DIR / "ours"
+use_templates_dir = TEMPLATES_DIR / "ours_v2"
 
 parser = ArgumentParser()
 Comparator.add_args(parser)
@@ -46,7 +46,7 @@ for template_file in template_files:
     template_base = f"{template_parent}/{template_file.stem}"
     print(template_base)
 
-    out_dir = RESULTS_DIR / results_base / template_base
+    out_dir = RESULTS_DIR / f"tokens_max_{TOKENS_MAX}" / results_base / template_base
     result_path = out_dir / f"{MODEL}_nexamples-{NUM_EXAMPLES}.parquet"
     if not result_path.exists():
         arg_strs = [

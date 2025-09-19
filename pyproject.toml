@@ -25,11 +25,12 @@ dependencies = [
     "peft>=0.17.1",
     "pydantic>=2.11.7",
     "tiktoken",
-    "flash-attn==2.6.3; sys_platform != 'darwin'",
+    # "flash-attn==2.6.3; sys_platform != 'darwin'",
     "tqdm>=4.67.1",
     "transformers>=4.54.0",
     "torch>=2.7.0",
     "torchvision>=0.22.0",
+    "flash-attn>=2.8.3; sys_platform == 'linux'",
 ]
 
 
@@ -41,5 +42,7 @@ dev = [
     "ipywidgets>=8.1.7",
 ]
 
-[tool.uv]
-no-build-isolation-package = ['flash-attn']
+# [tool.uv]
+# no-build-isolation-package = ['flash-attn']
+[tool.uv.extra-build-dependencies]
+flash-attn = ["torch"]

@@ -920,7 +920,7 @@ dependencies = [
     { name = "anthropic" },
     { name = "datasets" },
     { name = "fabdata-llm" },
-    { name = "flash-attn", marker = "sys_platform != 'darwin'" },
+    { name = "flash-attn", marker = "sys_platform == 'linux'" },
     { name = "joblib" },
     { name = "matplotlib" },
     { name = "numpy" },
@@ -947,7 +947,7 @@ requires-dist = [
     { name = "anthropic", specifier = ">=0.49.0" },
     { name = "datasets", specifier = ">=4.0.0" },
     { name = "fabdata-llm", git = "https://github.com/AI-for-Education/fabdata-llm.git?rev=main" },
-    { name = "flash-attn", marker = "sys_platform != 'darwin'", specifier = "==2.6.3" },
+    { name = "flash-attn", marker = "sys_platform == 'linux'", specifier = ">=2.8.3" },
     { name = "joblib", specifier = ">=1.5.1" },
     { name = "matplotlib", specifier = ">=3.10.5" },
     { name = "numpy", specifier = ">=2.3.2" },
@@ -1004,13 +1004,13 @@ wheels = [
 
 [[package]]
 name = "flash-attn"
-version = "2.6.3"
+version = "2.8.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "einops", marker = "sys_platform != 'darwin'" },
     { name = "torch", marker = "sys_platform != 'darwin'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/cd/1e/21321670cd3c2f225026d9fd89272cae661529238850e79f48ccf2f9e4e3/flash_attn-2.6.3.tar.gz", hash = "sha256:5bfae9500ad8e7d2937ebccb4906f3bc464d1bf66eedd0e4adabd520811c7b52", size = 2631958, upload-time = "2024-07-25T23:45:52.283Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/3b/b2/8d76c41ad7974ee264754709c22963447f7f8134613fd9ce80984ed0dab7/flash_attn-2.8.3.tar.gz", hash = "sha256:1e71dd64a9e0280e0447b8a0c2541bad4bf6ac65bdeaa2f90e51a9e57de0370d", size = 8447812, upload-time = "2025-08-15T08:28:12.911Z" }
 
 [[package]]
 name = "flatten-dict"
