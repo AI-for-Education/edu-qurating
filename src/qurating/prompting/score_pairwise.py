@@ -190,7 +190,8 @@ class Comparator:
         votes_a = np.zeros((n, n), dtype=np.int32)
         votes_b = np.zeros((n, n), dtype=np.int32)
         predictions = np.full((n, n), -100, dtype=np.float32)
-        caller = get_caller(self.args.model)
+        # caller = get_caller(self.args.model)
+        caller = self.args.model
 
         return texts, caller, num_tokens, n, votes_a, votes_b, predictions
 

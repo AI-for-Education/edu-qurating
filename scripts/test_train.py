@@ -98,6 +98,18 @@ def parse_args():
         help="Seed used for dataset sampling"
     )
     parser.add_argument(
+        "--dataset-templates", 
+        type=str, 
+        default="ours_v2",
+        help="Name of the templates folder used for pairwise dataset"
+    )
+    parser.add_argument(
+        "--dataset-max-tokens", 
+        type=int, 
+        default=512,
+        help="Max tokens used for pairwise dataset"
+    )
+    parser.add_argument(
         "--judgment-model", 
         type=str, 
         default="gpt-4.1-mini",
@@ -172,8 +184,9 @@ def load_dataset_and_setup_args(args):
     dataset_base = f"fwe-fortified_sampled-{n_samples}_seed-{seed}"
     dataset_file = (
         RESULTS_DIR
+        / f"tokens_max_{args.dataset_max_tokens}"
         / dataset_base
-        / "ours"
+        / args.dataset_templates
         / f"combined_{model_name}_nexamples-{num_examples}.parquet"
     )
     

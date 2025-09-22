@@ -86,6 +86,7 @@ dataset: Dataset = concatenate_datasets(datasets, axis=1)
 
 outfile = out_dir = (
     RESULTS_DIR
+    / f"tokens_max_{TOKENS_MAX}"
     / results_base
     / template_parent
     / f"combined_{MODEL}_nexamples-{NUM_EXAMPLES}.parquet"
