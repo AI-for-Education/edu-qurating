@@ -25,7 +25,7 @@ dataset = Dataset.from_parquet(
 )
 
 # %%
-NUM_EXAMPLES = 500
+NUM_EXAMPLES = 20000
 TOKENS_MAX = 512
 MODEL = "gpt-4.1-mini"
 

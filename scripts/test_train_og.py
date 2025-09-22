@@ -110,8 +110,9 @@ dataset_base = f"fwe-fortified_sampled-{n_samples}_seed-{seed}"
 
 dataset_file = (
     RESULTS_DIR
+    / f"tokens_max_512"
     / dataset_base
-    / "ours"
+    / "ours_v2"
     / f"combined_{model_name}_nexamples-{num_examples}.parquet"
 )
 
