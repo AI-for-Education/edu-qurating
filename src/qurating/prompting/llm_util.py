@@ -4,6 +4,7 @@ import time
 import json
 from filelock import FileLock
 import random
+import asyncio
 
 from anthropic import Anthropic, HUMAN_PROMPT, AI_PROMPT
 import openai
@@ -49,7 +50,6 @@ class ResponseFormat(BaseModel):
 
 RANDOM = random.Random()
 
-
 async def aquery_model(
     prompt: str,
     model: str | LLMCaller,
@@ -57,21 +57,38 @@ async def aquery_model(
     generations: int = 1,
     retries: int = 1,
     log_file_path: str = "openai_api_cost.jsonl",
+    semaphore = None,
 ) -> List[str]:
     if generations > 1:
-        return [
-            (
-                await aquery_model(
-                    prompt=prompt,
-                    model=model,
-                    system_prompt=system_prompt,
-                    generations=1,
-                    retries=retries,
-                    log_file_path=log_file_path,
-                )
-            )[0]
-            for _ in range(generations)
-        ]
+        if semaphore is not None:
+            async with semaphore:
+                return [
+                    (
+                        await aquery_model(
+                            prompt=prompt,
+                            model=model,
+                            system_prompt=system_prompt,
+                            generations=1,
+                            retries=retries,
+                            log_file_path=log_file_path,
+                        )
+                    )[0]
+                    for _ in range(generations)
+                ]
+        else:
+            return [
+                    (
+                        await aquery_model(
+                            prompt=prompt,
+                            model=model,
+                            system_prompt=system_prompt,
+                            generations=1,
+                            retries=retries,
+                            log_file_path=log_file_path,
+                        )
+                    )[0]
+                    for _ in range(generations)
+                ]
     #############################################################
 
     if isinstance(model, str):
@@ -96,7 +113,7 @@ async def aquery_model(
                 messages,
                 max_tokens=None,
                 response_schema=ResponseFormat,
-                temperature=None,
+                temperature=1,
             )
             response_obj = ResponseFormat.model_validate_json(response.Message)
             choice = response_obj.choice
@@ -108,10 +125,10 @@ async def aquery_model(
                     + 5 * RANDOM.random()
                 )
                 print(f"Wait {timeout}s before OpenAI API retry ({error})")
-                time.sleep(timeout)
+                asyncio.sleep(timeout)
             elif retry_count < retries:
                 print(f"OpenAI API retry for {retry_count} times ({error})")
-                time.sleep(2)
+                asyncio.sleep(2)
                 retry_count += 1
             else:
                 print(f"OpenAI API failed for {retry_count} times ({error})")
@@ -119,10 +136,16 @@ async def aquery_model(
 
     generations = [choice]
 
-    usage = {
-        "prompt_tokens": response.TokensUsed - response.TokensUsedCompletion,
-        "completion_tokens": response.TokensUsedCompletion,
-    }
+    if all(tk is not None for tk in (response.TokensUsed, response.TokensUsedCompletion)):
+        usage = {
+            "prompt_tokens": response.TokensUsed - response.TokensUsedCompletion,
+            "completion_tokens": response.TokensUsedCompletion,
+        }
+    else:
+        usage = {
+            "prompt_tokens": None,
+            "completion_tokens": None,
+        }
     # usage["prompt_cost"] = (
     #     MODELS[model]["prompt_cost_per_token"] * usage["prompt_tokens"]
     # )
@@ -132,9 +155,9 @@ async def aquery_model(
     # usage["cost"] = usage["prompt_cost"] + usage["response_cost"]
     usage["model"] = model
 
-    with FileLock(log_file_path + ".lock"):
-        with open(log_file_path, "a") as f:
-            f.write(json.dumps(usage) + "\n")
+    # with FileLock(log_file_path + ".lock"):
+    #     with open(log_file_path, "a") as f:
+    #         f.write(json.dumps(usage) + "\n")
 
     return generations
 
@@ -183,7 +206,7 @@ def query_model(
                 messages,
                 max_tokens=None,
                 response_schema=ResponseFormat,
-                temperature=None,
+                temperature=1,
             )
             response_obj = ResponseFormat.model_validate_json(response.Message)
             choice = response_obj.choice
@@ -206,10 +229,16 @@ def query_model(
 
     generations = [choice]
 
-    usage = {
-        "prompt_tokens": response.TokensUsed - response.TokensUsedCompletion,
-        "completion_tokens": response.TokensUsedCompletion,
-    }
+    if all(tk is not None for tk in (response.TokensUsed, response.TokensUsedCompletion)):
+        usage = {
+            "prompt_tokens": response.TokensUsed - response.TokensUsedCompletion,
+            "completion_tokens": response.TokensUsedCompletion,
+        }
+    else:
+        usage = {
+            "prompt_tokens": None,
+            "completion_tokens": None,
+        }
     # usage["prompt_cost"] = (
     #     MODELS[model]["prompt_cost_per_token"] * usage["prompt_tokens"]
     # )
@@ -219,9 +248,9 @@ def query_model(
     # usage["cost"] = usage["prompt_cost"] + usage["response_cost"]
     usage["model"] = model
 
-    with FileLock(log_file_path + ".lock"):
-        with open(log_file_path, "a") as f:
-            f.write(json.dumps(usage) + "\n")
+    # with FileLock(log_file_path + ".lock"):
+    #     with open(log_file_path, "a") as f:
+    #         f.write(json.dumps(usage) + "\n")
 
     return generations
 
