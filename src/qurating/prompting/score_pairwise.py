@@ -1,4 +1,5 @@
 import argparse
+import asyncio
 
 from datasets import load_from_disk, load_dataset
 from transformers import AutoTokenizer
@@ -59,6 +60,7 @@ class Comparator:
 
         self.offset = 0
         self.num_examples = 0
+        self.semaphore = asyncio.Semaphore(200)
 
     def __getstate__(self):
         return self.args
@@ -126,7 +128,8 @@ class Comparator:
                     caller,
                     system_prompt=self.args.system_prompt,
                     generations=self.args.generations,
-                    log_file_path=str(LOG_DIR / "api_cost.jsonl")
+                    log_file_path=str(LOG_DIR / "api_cost.jsonl"),
+                    semaphore=self.semaphore,
                 )
 
                 for vote in self.parse_generations(generations):
@@ -134,8 +137,10 @@ class Comparator:
                         votes_a[i, j] += 1
                     elif vote == 1:
                         votes_b[i, j] += 1
-                        
-        return self._post_call(examples, indices, texts, n, votes_a, votes_b, predictions)
+
+        return self._post_call(
+            examples, indices, texts, n, votes_a, votes_b, predictions
+        )
 
     def __call__(self, examples, indices):
         texts, caller, num_tokens, n, votes_a, votes_b, predictions = self._pre_call(
@@ -166,7 +171,9 @@ class Comparator:
                         votes_a[i, j] += 1
                     elif vote == 1:
                         votes_b[i, j] += 1
-        return self._post_call(examples, indices, texts, n, votes_a, votes_b, predictions)
+        return self._post_call(
+            examples, indices, texts, n, votes_a, votes_b, predictions
+        )
 
     def _pre_call(self, examples, indices):
         num_tokens = self.sample_num_tokens(indices)
@@ -190,8 +197,8 @@ class Comparator:
         votes_a = np.zeros((n, n), dtype=np.int32)
         votes_b = np.zeros((n, n), dtype=np.int32)
         predictions = np.full((n, n), -100, dtype=np.float32)
-        # caller = get_caller(self.args.model)
-        caller = self.args.model
+        caller = get_caller(self.args.model)
+        # caller = self.args.model
 
         return texts, caller, num_tokens, n, votes_a, votes_b, predictions
 

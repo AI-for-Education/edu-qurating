@@ -27,7 +27,9 @@ dataset = Dataset.from_parquet(
 # %%
 NUM_EXAMPLES = 20000
 TOKENS_MAX = 512
-MODEL = "gpt-4.1-mini"
+# MODEL = "gpt-4.1-mini"
+MODEL = "gpt-5-mini-2025-08-07-minimal"
+# MODEL = "gemini-2.5-flash-preview-05-20"
 
 use_templates_dir = TEMPLATES_DIR / "ours_v2"
 
@@ -59,6 +61,7 @@ for template_file in template_files:
         args = parser.parse_args([arg for argstr in arg_strs for arg in argstr.split()])
 
         comp = Comparator(args)
+        print(comp.args.tokens_max)
 
         output = comp.apply(dataset)
 
