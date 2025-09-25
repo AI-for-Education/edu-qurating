@@ -7,6 +7,8 @@ packages = ["src/qurating", "src/qurating/prompting/templates/*.txt"]
 
 [tool.uv.sources]
 fabdata-llm = { git = "https://github.com/AI-for-Education/fabdata-llm.git", rev = "main" }
+# torch = {index = "pytorch"}
+# torchvision = {index = "pytorch"}
 
 [project]
 name = "fab-qurating"
@@ -16,19 +18,21 @@ readme = "README.md"
 requires-python = ">=3.12, <3.13"
 dependencies = [
     "anthropic>=0.49.0",
-    "datasets>=4.0.0",
     "fabdata-llm==0.28.1",
     "joblib>=1.5.1",
     "matplotlib>=3.10.5",
-    "numpy>=2.3.2",
-    "openai",
     "peft>=0.17.1",
     "pydantic>=2.11.7",
-    "tiktoken",
-    "tqdm>=4.67.1",
-    "transformers>=4.54.0",
-    "torch>=2.7.0",
-    "torchvision>=0.22.0",
+    "tiktoken>=0.8.0",
+    "openai>=1.61.1",
+    "torch>=2.8.0",
+    "torchvision>=0.23.0",
+    "transformers>=4.56.2",
+    "numpy>=2.1.2",
+    "accelerate>=1.10.1",
+    "tqdm>=4.66.5",
+    "datasets>=4.1.1",
+    "flash-attn>=2.8.3",
 ]
 
 
@@ -40,5 +44,9 @@ dev = [
     "ipywidgets>=8.1.7",
 ]
 
-[tool.uv]
-no-build-isolation-package = ['flash-attn']
+# [tool.uv]
+# no-build-isolation-package = ['flash-attn']
+
+# [[tool.uv.index]]
+# name = "pytorch"
+# url = "https://download.pytorch.org/whl/cu129"

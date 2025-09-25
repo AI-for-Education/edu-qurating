@@ -15,7 +15,6 @@ import os
 import logging
 import argparse
 
-from dotenv import load_dotenv
 from datasets import Dataset
 from transformers import (
     AutoTokenizer,
@@ -38,8 +37,6 @@ from qurating.training import (
     ConfidenceFilter,
 )
 from qurating.modeling import create_model
-
-load_dotenv(override=True)
 
 # Setup logging
 logging.basicConfig(
@@ -140,10 +137,31 @@ def parse_args():
         help="Number of examples to use for training",
     )
     parser.add_argument(
-        "--epochs", type=int, default=1, help="Number of training epochs"
+        "--epochs", type=int, default=2, help="Number of training epochs"
     )
     parser.add_argument(
-        "--batch-size", type=int, default=2, help="Per-device training batch size"
+        "--batch-size-per-device",
+        type=int,
+        default=16,
+        help="Per-device training batch size",
+    )
+    parser.add_argument(
+        "--batch-size-total",
+        type=int,
+        default=512,
+        help="Total training batch size across all devices with gradient accumulation",
+    )
+    parser.add_argument(
+        "--num_gpus",
+        type=int,
+        default=8,
+        help="Total number of GPUs used for training",
+    )
+    parser.add_argument(
+        "--num_nodes",
+        type=int,
+        default=1,
+        help="Total number of nodes used for training",
     )
     parser.add_argument(
         "--learning-rate", type=float, default=5e-5, help="Learning rate for training"
@@ -254,8 +272,14 @@ def setup_training_args_and_collator(args, label_names, tokenizer):
         output_dir=args.output_dir,
         run_name="test_single_epoch_training",
         num_train_epochs=args.epochs,
-        per_device_train_batch_size=args.batch_size,
-        per_device_eval_batch_size=args.batch_size,
+        per_device_train_batch_size=args.batch_size_per_device,
+        per_device_eval_batch_size=args.batch_size_per_device,
+        gradient_accumulation_steps=int(
+            args.batch_size_total
+            / args.batch_size_per_device
+            / args.num_gpus
+            / args.num_nodes
+        ),
         learning_rate=args.learning_rate,
         warmup_ratio=0.1,
         weight_decay=0.1,
@@ -352,7 +376,8 @@ def run_training(
     print(f"  - Training examples: {len(train_dataset)}")
     print(f"  - Validation examples: {len(eval_datasets['validation'])}")
     print(f"  - Epochs: {training_args.num_train_epochs}")
-    print(f"  - Batch size: {training_args.per_device_train_batch_size}")
+    print(f"  - Batch size per device: {training_args.per_device_train_batch_size}")
+    print(f"  - Gradient accumulation steps: {training_args.gradient_accumulation_steps}")
     print(f"  - Learning rate: {training_args.learning_rate}")
 
     # Start training
@@ -397,7 +422,7 @@ def run_training(
     return True
 
 
-def main():
+def train():
     """Main training function."""
     # Parse command line arguments
     args = parse_args()
@@ -405,7 +430,15 @@ def main():
     print(f"Starting preference model training with arguments:")
     print(f"  Model: {args.model_name}")
     print(f"  Epochs: {args.epochs}")
-    print(f"  Batch size: {args.batch_size}")
+    print(f"  Batch size per device: {args.batch_size_per_device}")
+    print(
+        f"  Gradient accumulation steps: {int(
+            args.batch_size_total
+            / args.batch_size_per_device
+            / args.num_gpus
+            / args.num_nodes
+        )}"
+    )
     print(f"  Learning rate: {args.learning_rate}")
     print(f"  Output directory: {args.output_dir}")
 
@@ -461,5 +494,5 @@ def main():
 
 
 if __name__ == "__main__":
-    exit_code = main()
+    exit_code = train()
     sys.exit(exit_code)
