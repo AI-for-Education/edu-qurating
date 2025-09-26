@@ -80,7 +80,7 @@ class ScriptArguments:
     single_label_ablation: int = -1
     cache_dir: str = ".cache"
     use_fast_tokenizer: bool = False
-    eval_split_size: float = 0.2
+    eval_split_size: float = 0.1
 
     def __post_init__(self):
         if self.config_name is None:
@@ -127,13 +127,13 @@ def parse_args():
     parser.add_argument(
         "--judgment-model",
         type=str,
-        default="gpt-4.1-mini",
+        default="gpt-5-mini-2025-08-07-minimal",
         help="Model used for generating judgments",
     )
     parser.add_argument(
         "--num-examples",
         type=int,
-        default=500,
+        default=20000,
         help="Number of examples to use for training",
     )
     parser.add_argument(
@@ -173,12 +173,12 @@ def parse_args():
         help="Directory to save the trained model",
     )
     parser.add_argument(
-        "--max-length", type=int, default=512, help="Maximum sequence length"
+        "--max-length", type=int, default=2048, help="Maximum sequence length"
     )
     parser.add_argument(
         "--eval-split",
         type=float,
-        default=0.2,
+        default=0.1,
         help="Fraction of data to use for evaluation",
     )
     parser.add_argument(
@@ -270,7 +270,7 @@ def setup_training_args_and_collator(args, label_names, tokenizer):
     # Setup training arguments
     training_args = TrainingArguments(
         output_dir=args.output_dir,
-        run_name="test_single_epoch_training",
+        run_name=args.output_dir,
         num_train_epochs=args.epochs,
         per_device_train_batch_size=args.batch_size_per_device,
         per_device_eval_batch_size=args.batch_size_per_device,
