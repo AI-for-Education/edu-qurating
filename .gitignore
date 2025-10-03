@@ -176,3 +176,5 @@ cython_debug/
 .dvc/config.local
 custom_models.yaml
 logs
+
+test_training_output

@@ -190,7 +190,7 @@ def main():
     print(f"Loaded {len(df)} pairs ({len(df) * 2} total texts)")
     
     # Use subset if specified
-    if args.subset:
+    if args.subset and args.subset > 0:
         df = df.head(args.subset)
         print(f"Using subset of {len(df)} pairs ({len(df) * 2} texts)")
     
@@ -236,6 +236,7 @@ def main():
     
     # Save results
     print(f"Saving results to {args.output}")
+    Path(args.output).parent.mkdir(exist_ok=True, parents=True)
     final_df.to_json(args.output, orient='records', indent=2)
     
     # Print summary statistics
