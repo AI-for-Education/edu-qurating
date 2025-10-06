@@ -7,9 +7,8 @@ Now adapted to actually train a model for a single epoch using the upstream meth
 """
 
 # %%
-from typing import Any, Dict, Optional, List
-from collections import namedtuple
-from dataclasses import dataclass, field
+from typing import Optional, List
+from dataclasses import dataclass
 import sys
 import os
 import logging
@@ -18,12 +17,11 @@ import argparse
 from datasets import Dataset
 from transformers import (
     AutoTokenizer,
-    AutoModelForSequenceClassification,
     AutoConfig,
-    HfArgumentParser,
     set_seed,
 )
 import torch
+from dotenv import load_dotenv
 
 from qurating.constants import RESULTS_DIR
 
@@ -31,12 +29,12 @@ from qurating.training import (
     PreferenceTrainer,
     TrainingArguments,
     DataCollator,
-    confidence_mask,
-    bce_with_temperature,
     LabelFilter,
     ConfidenceFilter,
 )
 from qurating.modeling import create_model
+
+load_dotenv(override=True)
 
 # Setup logging
 logging.basicConfig(
@@ -94,6 +92,7 @@ def parse_args():
     parser = argparse.ArgumentParser(
         description="Train a preference model for educational content evaluation."
     )
+    parser.add_argument("--report_to", type=str, default=None)
     parser.add_argument(
         "--model-name",
         type=str,
@@ -125,7 +124,7 @@ def parse_args():
         help="Max tokens used for pairwise dataset",
     )
     parser.add_argument(
-        "--judgment-model",
+        "--judgement-model",
         type=str,
         default="gpt-5-mini-2025-08-07-minimal",
         help="Model used for generating judgments",
@@ -135,6 +134,9 @@ def parse_args():
         type=int,
         default=20000,
         help="Number of examples to use for training",
+    )
+    parser.add_argument(
+        "--save-steps", type=int, default=200, help="Number of training epochs"
     )
     parser.add_argument(
         "--epochs", type=int, default=2, help="Number of training epochs"
@@ -197,7 +199,7 @@ def load_dataset_and_setup_args(args):
     # Dataset parameters from args
     n_samples = args.dataset_samples
     seed = args.dataset_seed
-    model_name = args.judgment_model
+    model_name = args.judgement_model
     num_examples = args.num_examples
 
     dataset_base = f"fwe-fortified_sampled-{n_samples}_seed-{seed}"
@@ -269,6 +271,7 @@ def setup_training_args_and_collator(args, label_names, tokenizer):
 
     # Setup training arguments
     training_args = TrainingArguments(
+        report_to=args.report_to,
         output_dir=args.output_dir,
         run_name=args.output_dir,
         num_train_epochs=args.epochs,
@@ -283,10 +286,11 @@ def setup_training_args_and_collator(args, label_names, tokenizer):
         learning_rate=args.learning_rate,
         warmup_ratio=0.1,
         weight_decay=0.1,
+        max_grad_norm=1.0,
         logging_steps=10,
         eval_strategy="steps",
         eval_steps=50,
-        save_steps=50,
+        save_steps=args.save_steps,
         do_train=True,
         do_eval=True,
         overwrite_output_dir=True,
@@ -299,6 +303,10 @@ def setup_training_args_and_collator(args, label_names, tokenizer):
         confidence_threshold=args.confidence_threshold,
         label_temperature=1.0,
         log_confidences=[0.5, 0.8],
+        greater_is_better=False,
+        metric_for_best_model="eval_validation_loss",
+        fsdp="auto_wrap",
+        ddp_find_unused_parameters=False,
     )
 
     # Setup data collator
@@ -371,13 +379,15 @@ def run_training(
         data_collator=data_collator,
     )
 
-    print(f"Trainer initialized with:")
+    print("Trainer initialized with:")
     print(f"  - Model: {model.__class__.__name__}")
     print(f"  - Training examples: {len(train_dataset)}")
     print(f"  - Validation examples: {len(eval_datasets['validation'])}")
     print(f"  - Epochs: {training_args.num_train_epochs}")
     print(f"  - Batch size per device: {training_args.per_device_train_batch_size}")
-    print(f"  - Gradient accumulation steps: {training_args.gradient_accumulation_steps}")
+    print(
+        f"  - Gradient accumulation steps: {training_args.gradient_accumulation_steps}"
+    )
     print(f"  - Learning rate: {training_args.learning_rate}")
 
     # Start training
@@ -427,7 +437,7 @@ def train():
     # Parse command line arguments
     args = parse_args()
 
-    print(f"Starting preference model training with arguments:")
+    print("Starting preference model training with arguments:")
     print(f"  Model: {args.model_name}")
     print(f"  Epochs: {args.epochs}")
     print(f"  Batch size per device: {args.batch_size_per_device}")
