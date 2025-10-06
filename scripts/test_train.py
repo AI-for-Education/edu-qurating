@@ -7,9 +7,8 @@ Now adapted to actually train a model for a single epoch using the upstream meth
 """
 
 # %%
-from typing import Any, Dict, Optional, List
-from collections import namedtuple
-from dataclasses import dataclass, field
+from typing import Optional, List
+from dataclasses import dataclass
 import sys
 import os
 import logging
@@ -19,9 +18,7 @@ from dotenv import load_dotenv
 from datasets import Dataset
 from transformers import (
     AutoTokenizer,
-    AutoModelForSequenceClassification,
     AutoConfig,
-    HfArgumentParser,
     set_seed,
 )
 import torch
@@ -32,8 +29,6 @@ from qurating.training import (
     PreferenceTrainer,
     TrainingArguments,
     DataCollator,
-    confidence_mask,
-    bce_with_temperature,
     LabelFilter,
     ConfidenceFilter,
 )
@@ -347,7 +342,7 @@ def run_training(
         data_collator=data_collator,
     )
 
-    print(f"Trainer initialized with:")
+    print("Trainer initialized with:")
     print(f"  - Model: {model.__class__.__name__}")
     print(f"  - Training examples: {len(train_dataset)}")
     print(f"  - Validation examples: {len(eval_datasets['validation'])}")
@@ -402,7 +397,7 @@ def main():
     # Parse command line arguments
     args = parse_args()
 
-    print(f"Starting preference model training with arguments:")
+    print("Starting preference model training with arguments:")
     print(f"  Model: {args.model_name}")
     print(f"  Epochs: {args.epochs}")
     print(f"  Batch size: {args.batch_size}")
