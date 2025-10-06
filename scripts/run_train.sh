@@ -71,7 +71,6 @@ fi
 
 export OMP_NUM_THREADS=$num_gpus
 
-export WANDB_PROJECT="lm-data-selection"
 export WANDB_DIR=$out_dir
 export WANDB_MODE="online"
 
