@@ -16,6 +16,7 @@ import torch
 import matplotlib.pyplot as plt
 
 from qurating.constants import RESULTS_DIR
+from qurating.modeling.model_factory import create_model
 
 load_dotenv(override=True)
 
@@ -39,6 +40,8 @@ Returns a dict of:
         for row i of the input (in other words, the 2 x 2 square centred on ith the diagional element). All elements of
         the output tensor outside of this area around the diagonal are treated as missing data for the loss calculation.
 """
+
+
 class DataCollator:
     def __init__(self, args, training_args, tokenizer):
         self.args = args
@@ -105,14 +108,14 @@ tokenizer.pad_token_id = 0
 n_samples = 20000
 seed = 72353534
 
-model_name = "gpt-4.1-mini"
-num_examples = 500
+model_name = "gpt-5-mini-2025-08-07-minimal"
+num_examples = 20000
 
 dataset_base = f"fwe-fortified_sampled-{n_samples}_seed-{seed}"
 
 dataset_file = (
     RESULTS_DIR
-    / f"tokens_max_512"
+    / "tokens_max_512"
     / dataset_base
     / "ours_v2"
     / f"combined_{model_name}_nexamples-{num_examples}.parquet"
@@ -185,13 +188,20 @@ torch.cuda.is_available()
 torch.cuda.device_count()
 
 print(torch.cuda.get_device_name(0))
-print('__CUDNN VERSION:', torch.backends.cudnn.version())
-print('__Number CUDA Devices:', torch.cuda.device_count())
-print('__CUDA Device Name:',torch.cuda.get_device_name(0))
-print('__CUDA Device Total Memory [GB]:',torch.cuda.get_device_properties(0).total_memory/1e9)
-print('Memory Usage:')
-print('Allocated:', round(torch.cuda.memory_allocated(0)/1024**3,1), 'GB')
-print('Cached:   ', round(torch.cuda.memory_reserved(0)/1024**3,1), 'GB')
+print("__CUDNN VERSION:", torch.backends.cudnn.version())
+print("__Number CUDA Devices:", torch.cuda.device_count())
+print("__CUDA Device Name:", torch.cuda.get_device_name(0))
+print(
+    "__CUDA Device Total Memory [GB]:",
+    torch.cuda.get_device_properties(0).total_memory / 1e9,
+)
+print("Memory Usage:")
+print("Allocated:", round(torch.cuda.memory_allocated(0) / 1024**3, 1), "GB")
+print("Cached:   ", round(torch.cuda.memory_reserved(0) / 1024**3, 1), "GB")
 
 # %%
+model = create_model(
+    "./test_training_output/test_training_output/test_run_20k_epochs-20/checkpoint-360", config=config, dtype=torch.bfloat16
+)
+
 model = model.to(torch.device("cuda:0"))
