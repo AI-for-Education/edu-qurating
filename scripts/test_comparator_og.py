@@ -18,10 +18,14 @@ seed = 72353534
 dataset_base = f"fwe-fortified_sampled-{n_samples}_seed-{seed}"
 
 # %%
-dataset = Dataset.from_parquet(
-    str(DATASETS_DIR / f"{dataset_base}.parquet"),
-    keep_in_memory=True,
-)
+parquetf = DATASETS_DIR / f"{dataset_base}.parquet"
+if parquetf.exists():
+    dataset = Dataset.from_parquet(str(parquetf), keep_in_memory=True)
+else:
+    dataset = Dataset.load_from_disk(
+        str(DATASETS_DIR / f"{dataset_base}"),
+        keep_in_memory=True,
+    )
 
 # %%
 NUM_EXAMPLES = 500000
