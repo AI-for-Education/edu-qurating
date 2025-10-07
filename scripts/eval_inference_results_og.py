@@ -13,7 +13,9 @@ seed = 72353534
 
 NUM_EXAMPLES = 20000
 TOKENS_MAX = 512
-MODEL = "qurater_Sheared-LLaMA-1.3b_bsz512_lr5e-5_epochs20_warmup0.1_conf0.5_labeltemp1.0"
+MODEL = (
+    "qurater_Sheared-LLaMA-1.3b_bsz512_lr5e-5_epochs20_warmup0.1_conf0.5_labeltemp1.0"
+)
 JUDGEMENTS_MODEL = "gpt-5-mini-2025-08-07-minimal"
 
 
@@ -54,18 +56,18 @@ def logit_pairs_to_probs(logitsa, logitsb):
     logit_diffs = logitsa - logitsb
     probs = sigmoid(logit_diffs)
     out = np.zeros((probs.shape[0], 2))
-    out[:, 0] = probs
-    out[:, 1] = 1 - probs
+    out[:, 0] = 1 - probs
+    out[:, 1] = probs
     return out
 
 
 labels = [
-    "factual_accuracy",
-    "pedagogical_structure",
-    "lesson_engagement",
-    "education_level",
-    "education_level_primary",
-    "education_level_secondary",
+    "education_level_average",
+    "education_level_primary_average",
+    "education_level_secondary_average",
+    "factual_accuracy_average",
+    "lesson_engagement_average",
+    "pedagogical_structure_average",
 ]
 
 annotations_df = pd.DataFrame(annotations)

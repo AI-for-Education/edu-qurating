@@ -1,5 +1,7 @@
 import argparse
 import asyncio
+from pathlib import Path
+import pickle
 
 from datasets import load_from_disk, load_dataset
 from transformers import AutoTokenizer
@@ -7,7 +9,7 @@ import numpy as np
 from fdllm import get_caller
 
 from .llm_util import query_model, aquery_model
-from ..constants import LOG_DIR
+from ..constants import LOG_DIR, CACHE_DIR
 
 
 class Comparator:
@@ -49,6 +51,7 @@ class Comparator:
         )
 
         parser.add_argument("--flat_output_format", action="store_true")
+        parser.add_argument("--cache_dir", type=str, default=str(CACHE_DIR))
 
     def __init__(self, args):
         self.args = args
@@ -60,7 +63,12 @@ class Comparator:
 
         self.offset = 0
         self.num_examples = 0
-        self.semaphore = asyncio.Semaphore(200)
+        self.semaphore = asyncio.Semaphore(100)
+        self.cache_dir = (
+            Path(args.cache_dir)
+            / f"{Path(args.template_file).stem}_{args.model}_{args.tokens_max}_{args.num_examples}"
+        )
+        self.cache_dir.mkdir(exist_ok=True, parents=True)
 
     def __getstate__(self):
         return self.args
@@ -216,7 +224,7 @@ class Comparator:
         )
 
         if not self.args.flat_output_format:
-            return {
+            out = {
                 "indices": [indices],
                 "examples": [examples],
                 "texts": [texts],
@@ -226,7 +234,7 @@ class Comparator:
             }
         else:
             indices_a, indices_b = np.where(np.triu(np.ones((n, n)), k=1))
-            return {
+            out = {
                 "index_a": indices_a,
                 "index_b": indices_b,
                 "texts_a": [texts[i] for i in indices_a],
@@ -239,6 +247,13 @@ class Comparator:
                     indices_a, indices_b
                 ].tolist(),
             }
+        cache_file = (
+            self.cache_dir / f"cache_{'-'.join(str(idx) for idx in indices)}.pkl"
+        )
+        cache_out = {key: val for key, val in out.items() if key not in ["examples"]}
+        with open(cache_file, "wb") as f:
+            pickle.dump(cache_out, f)
+        return out
 
     def apply(self, dataset):
         if self.args.num_examples_proportion is not None:
