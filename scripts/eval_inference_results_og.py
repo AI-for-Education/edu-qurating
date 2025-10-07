@@ -13,7 +13,9 @@ seed = 72353534
 
 NUM_EXAMPLES = 20000
 TOKENS_MAX = 512
-MODEL = "gpt-5-mini-2025-08-07-minimal"
+MODEL = "qurater_Sheared-LLaMA-1.3b_bsz512_lr5e-5_epochs20_warmup0.1_conf0.5_labeltemp1.0"
+JUDGEMENTS_MODEL = "gpt-5-mini-2025-08-07-minimal"
+
 
 annotations_dir = DATA_DIR / "annotations"
 
@@ -25,15 +27,16 @@ results_file = (
     / f"tokens_max_{TOKENS_MAX}"
     / results_base
     / template_base
-    / f"combined_{MODEL}_nexamples-{NUM_EXAMPLES}.parquet"
+    / f"combined_{JUDGEMENTS_MODEL}_nexamples-{NUM_EXAMPLES}.parquet"
 )
 
 annotations_file = (
     annotations_dir
+    / MODEL
     / f"tokens_max_{TOKENS_MAX}"
     / results_base
     / template_base
-    / f"combined_{MODEL}_nexamples-{NUM_EXAMPLES}.json"
+    / f"combined_{JUDGEMENTS_MODEL}_nexamples-{NUM_EXAMPLES}.json"
 )
 
 # %%
@@ -89,7 +92,9 @@ for label in labels:
 
 res = np.zeros((len(labels), len(labels)))
 for (i, label1), (j, label2) in product(enumerate(labels), repeat=2):
-    print(label1, label2)
+    # print(label1, label2)
     res[i, j] = (
         (annot_probs_arrs[label1][:, 0] - probs_arrs[label2][:, 0]) ** 2
     ).mean() ** 0.5
+
+print(res.round(3))
