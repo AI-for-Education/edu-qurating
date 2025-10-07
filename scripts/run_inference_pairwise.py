@@ -186,7 +186,14 @@ def main():
     
     # Load pairwise dataset
     print("Loading pairwise dataset...")
-    df = pd.read_parquet(args.input)
+    parquetf = Path(args.input).with_suffix(".parquet")
+    if parquetf.exists():
+        ds = Dataset.from_parquet(str(args.input))
+    elif Path(args.input).is_dir():
+        ds = Dataset.load_from_disk(args.input)
+    else:
+        raise ValueError(f"{args.input} doesn't exist or is not a valid format")
+    df = ds.to_pandas()
     print(f"Loaded {len(df)} pairs ({len(df) * 2} total texts)")
     
     # Use subset if specified
