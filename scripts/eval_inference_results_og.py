@@ -62,12 +62,12 @@ def logit_pairs_to_probs(logitsa, logitsb):
 
 
 labels = [
-    "education_level_average",
-    "education_level_primary_average",
-    "education_level_secondary_average",
-    "factual_accuracy_average",
-    "lesson_engagement_average",
-    "pedagogical_structure_average",
+    "education_level",
+    "education_level_primary",
+    "education_level_secondary",
+    "factual_accuracy",
+    "lesson_engagement",
+    "pedagogical_structure",
 ]
 
 annotations_df = pd.DataFrame(annotations)
@@ -96,7 +96,7 @@ res = np.zeros((len(labels), len(labels)))
 for (i, label1), (j, label2) in product(enumerate(labels), repeat=2):
     # print(label1, label2)
     res[i, j] = (
-        (annot_probs_arrs[label1][:, 0] - probs_arrs[label2][:, 0]) ** 2
-    ).mean() ** 0.5
+        np.abs(annot_probs_arrs[label1][:, 0] - probs_arrs[label2][:, 0])
+    ).mean()
 
 print(res.round(3))

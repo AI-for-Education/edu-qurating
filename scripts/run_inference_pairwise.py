@@ -220,9 +220,13 @@ def main():
         ds = Dataset.load_from_disk(args.input)
     else:
         raise ValueError(f"{args.input} doesn't exist or is not a valid format")
-    labels = [col for col in ds.column_names if col.endswith("_average")]
+    labels = [
+        "_".join(col.split("_")[:-1])
+        for col in ds.column_names
+        if col.endswith("_average")
+    ]
     print(f"Labels: {labels}")
-    
+
     df = ds.to_pandas()
     print(f"Loaded {len(df)} pairs ({len(df) * 2} total texts)")
 
