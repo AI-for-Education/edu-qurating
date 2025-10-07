@@ -1,14 +1,10 @@
 from typing import List, Literal
 import os
 import time
-import json
-from filelock import FileLock
 import random
 import asyncio
 
 from anthropic import Anthropic, HUMAN_PROMPT, AI_PROMPT
-import openai
-import tiktoken
 from fdllm import LLMMessage, get_caller
 from fdllm.llmtypes import LLMCaller
 from pydantic import BaseModel
@@ -124,14 +120,14 @@ async def aquery_model(
                     int(str(error).split("Please retry after ")[1].split(" second")[0])
                     + 5 * RANDOM.random()
                 )
-                print(f"Wait {timeout}s before OpenAI API retry ({error})")
+                print(f"Wait {timeout}s before API retry ({error})")
                 asyncio.sleep(timeout)
             elif retry_count < retries:
-                print(f"OpenAI API retry for {retry_count} times ({error})")
+                print(f"API retry for {retry_count} times ({error})")
                 asyncio.sleep(2)
                 retry_count += 1
             else:
-                print(f"OpenAI API failed for {retry_count} times ({error})")
+                print(f"API failed for {retry_count} times ({error})")
                 return []
 
     generations = [choice]

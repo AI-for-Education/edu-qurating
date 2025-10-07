@@ -1,5 +1,4 @@
 # %%
-import sys
 from argparse import ArgumentParser
 
 from fdllm import register_models
@@ -13,7 +12,7 @@ nest_asyncio.apply()
 
 register_models(ROOT / "custom_models.yaml")
 
-n_samples = 20000
+n_samples = 500000
 seed = 72353534
 
 dataset_base = f"fwe-fortified_sampled-{n_samples}_seed-{seed}"
@@ -25,11 +24,12 @@ dataset = Dataset.from_parquet(
 )
 
 # %%
-NUM_EXAMPLES = 20000
+NUM_EXAMPLES = 500000
 TOKENS_MAX = 512
 # MODEL = "gpt-4.1-mini"
-MODEL = "gpt-5-mini-2025-08-07-minimal"
+# MODEL = "gpt-5-mini-2025-08-07-minimal"
 # MODEL = "gemini-2.5-flash-preview-05-20"
+MODEL = "claude-sonnet-4-5-20250929"
 
 use_templates_dir = TEMPLATES_DIR / "ours_v2"
 

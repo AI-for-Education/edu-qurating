@@ -1,5 +1,6 @@
 # %%
 import json
+from itertools import product
 
 from datasets import Dataset
 import numpy as np
@@ -78,7 +79,7 @@ for label in labels:
     annot_arrs[label] = annot_arr
     annot_probs_arrs[label] = logit_pairs_to_probs(*annot_arr.T)
 
-    probs = np.array(dataset[f"{labels[0]}_average"])
+    probs = np.array(dataset[f"{label}_average"])
     probs_arr = probs[
         annotations_df["original_pair_id"],
         annotations_df["text_position"],
@@ -86,7 +87,9 @@ for label in labels:
     ].reshape((-1, 2))
     probs_arrs[label] = probs_arr
 
-for label in labels:
-    print(
-        ((annot_probs_arrs[label][:, 0] - probs_arrs[label][:, 0]) ** 2).mean() ** 0.5
-    )
+res = np.zeros((len(labels), len(labels)))
+for (i, label1), (j, label2) in product(enumerate(labels), repeat=2):
+    print(label1, label2)
+    res[i, j] = (
+        (annot_probs_arrs[label1][:, 0] - probs_arrs[label2][:, 0]) ** 2
+    ).mean() ** 0.5
