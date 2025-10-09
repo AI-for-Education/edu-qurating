@@ -8,7 +8,12 @@ from transformers import AutoTokenizer
 import numpy as np
 from fdllm import get_caller
 
-from .llm_util import query_model, aquery_model
+from .llm_util import (
+    query_model,
+    aquery_model,
+    query_model_logprobs,
+    aquery_model_logprobs,
+)
 from ..constants import LOG_DIR, CACHE_DIR
 
 
@@ -52,6 +57,8 @@ class Comparator:
 
         parser.add_argument("--flat_output_format", action="store_true")
         parser.add_argument("--cache_dir", type=str, default=str(CACHE_DIR))
+        parser.add_argument("--max-concurrency", type=int, default=20)
+        parser.add_argument("--logprobs", action="store_true")
 
     def __init__(self, args):
         self.args = args
@@ -63,10 +70,12 @@ class Comparator:
 
         self.offset = 0
         self.num_examples = 0
-        self.semaphore = asyncio.Semaphore(100)
+        self.semaphore = asyncio.Semaphore(args.max_concurrency)
+
+        cache_logprobs_suffix = "_use-logprobs" if args.logprobs else ""
         self.cache_dir = (
             Path(args.cache_dir)
-            / f"{Path(args.template_file).stem}_{args.model}_{args.tokens_max}_{args.num_examples}"
+            / f"{Path(args.template_file).stem}_{args.model}_{args.tokens_max}_{args.num_examples}{cache_logprobs_suffix}"
         )
         self.cache_dir.mkdir(exist_ok=True, parents=True)
 
@@ -99,7 +108,9 @@ class Comparator:
 
     def parse_generations(self, generations):
         for generation in generations:
-            if generation == self.args.labels[0]:
+            if generation is None:
+                yield None
+            elif generation == self.args.labels[0]:
                 yield 0
             elif generation == self.args.labels[1]:
                 yield 1
@@ -119,35 +130,48 @@ class Comparator:
         texts, caller, num_tokens, n, votes_a, votes_b, predictions = self._pre_call(
             examples, indices
         )
-        for i in range(n):
-            for j in range(n):
-                if i == j:
-                    continue
+        probs = np.full((2, n, n), fill_value=-100.0)
+        async with self.semaphore:
+            for i in range(n):
+                for j in range(n):
+                    if i == j:
+                        continue
 
-                prompt = self.args.template.format(
-                    text_a=texts[i],
-                    text_b=texts[j],
-                    label_a=self.args.labels[0],
-                    label_b=self.args.labels[1],
-                )
+                    prompt = self.args.template.format(
+                        text_a=texts[i],
+                        text_b=texts[j],
+                        label_a=self.args.labels[0],
+                        label_b=self.args.labels[1],
+                    )
 
-                generations = await aquery_model(
-                    prompt,
-                    caller,
-                    system_prompt=self.args.system_prompt,
-                    generations=self.args.generations,
-                    log_file_path=str(LOG_DIR / "api_cost.jsonl"),
-                    semaphore=self.semaphore,
-                )
+                    if self.args.logprobs:
+                        out_probs = await aquery_model_logprobs(
+                            prompt,
+                            caller,
+                            system_prompt=self.args.system_prompt,
+                            log_file_path=str(LOG_DIR / "api_cost.jsonl"),
+                            retries=0,
+                        )
+                        probs[:, i, j] = np.array(out_probs)
+                    else:
+                        ######### otherwise estimate probablity by counting over multiple runs
+                        generations = await aquery_model(
+                            prompt,
+                            caller,
+                            system_prompt=self.args.system_prompt,
+                            generations=self.args.generations,
+                            log_file_path=str(LOG_DIR / "api_cost.jsonl"),
+                            retries=0,
+                        )
 
-                for vote in self.parse_generations(generations):
-                    if vote == 0:
-                        votes_a[i, j] += 1
-                    elif vote == 1:
-                        votes_b[i, j] += 1
+                        for vote in self.parse_generations(generations):
+                            if vote == 0:
+                                votes_a[i, j] += 1
+                            elif vote == 1:
+                                votes_b[i, j] += 1
 
         return self._post_call(
-            examples, indices, texts, n, votes_a, votes_b, predictions
+            examples, indices, texts, n, votes_a, votes_b, predictions, probs
         )
 
     def __call__(self, examples, indices):
@@ -155,6 +179,7 @@ class Comparator:
             examples, indices
         )
 
+        probs = np.full((2, n, n), fill_value=-100.0)
         for i in range(n):
             for j in range(n):
                 if i == j:
@@ -166,21 +191,30 @@ class Comparator:
                     label_a=self.args.labels[0],
                     label_b=self.args.labels[1],
                 )
+                if self.args.logprobs:
+                    out_probs = query_model_logprobs(
+                        prompt,
+                        caller,
+                        system_prompt=self.args.system_prompt,
+                        log_file_path=str(LOG_DIR / "api_cost.jsonl"),
+                        retries=0,
+                    )
+                    probs[:, i, j] = np.array(out_probs)
+                else:
+                    generations = query_model(
+                        prompt,
+                        caller,
+                        system_prompt=self.args.system_prompt,
+                        generations=self.args.generations,
+                    )
 
-                generations = query_model(
-                    prompt,
-                    caller,
-                    system_prompt=self.args.system_prompt,
-                    generations=self.args.generations,
-                )
-
-                for vote in self.parse_generations(generations):
-                    if vote == 0:
-                        votes_a[i, j] += 1
-                    elif vote == 1:
-                        votes_b[i, j] += 1
+                    for vote in self.parse_generations(generations):
+                        if vote == 0:
+                            votes_a[i, j] += 1
+                        elif vote == 1:
+                            votes_b[i, j] += 1
         return self._post_call(
-            examples, indices, texts, n, votes_a, votes_b, predictions
+            examples, indices, texts, n, votes_a, votes_b, predictions, probs
         )
 
     def _pre_call(self, examples, indices):
@@ -210,18 +244,30 @@ class Comparator:
 
         return texts, caller, num_tokens, n, votes_a, votes_b, predictions
 
-    def _post_call(self, examples, indices, texts, n, votes_a, votes_b, predictions):
-        np.divide(
-            votes_b,
-            votes_a + votes_b,
-            out=predictions,
-            where=votes_a + votes_b > self.args.generations // 2,
-        )
-        calibrated_predictions = np.where(
-            (predictions != -100) & (predictions.T != -100),
-            (predictions + (1 - predictions.T)) / 2,
-            -100,
-        )
+    def _post_call(
+        self, examples, indices, texts, n, votes_a, votes_b, predictions, probs
+    ):
+        if self.args.logprobs:
+            calibrated_predictions = np.full((n, n), fill_value=-100.0)
+            for i in range(n):
+                for j in range(n):
+                    if i != j:
+                        calibrated_predictions[i, j] = (
+                            probs[1, i, j] + probs[0, j, i]
+                        ) / 2
+
+        else:
+            np.divide(
+                votes_b,
+                votes_a + votes_b,
+                out=predictions,
+                where=votes_a + votes_b > self.args.generations // 2,
+            )
+            calibrated_predictions = np.where(
+                (predictions != -100) & (predictions.T != -100),
+                (predictions + (1 - predictions.T)) / 2,
+                -100,
+            )
 
         if not self.args.flat_output_format:
             out = {

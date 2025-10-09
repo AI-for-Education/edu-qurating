@@ -12,7 +12,7 @@ nest_asyncio.apply()
 
 register_models(ROOT / "custom_models.yaml")
 
-n_samples = 500000
+n_samples = 20000
 seed = 72353534
 
 dataset_base = f"fwe-fortified_sampled-{n_samples}_seed-{seed}"
@@ -28,12 +28,17 @@ else:
     )
 
 # %%
-NUM_EXAMPLES = 500000
+NUM_EXAMPLES = 500
 TOKENS_MAX = 512
-# MODEL = "gpt-4.1-mini"
+MODEL = "gpt-4.1-mini"
 # MODEL = "gpt-5-mini-2025-08-07-minimal"
 # MODEL = "gemini-2.5-flash-preview-05-20"
-MODEL = "claude-sonnet-4-5-20250929"
+# MODEL = "claude-sonnet-4-5-20250929"
+# MODEL = "claude-3-5-haiku-20241022"
+
+max_concurrency = 100
+use_logprobs = True
+use_logprobs_suffix = "_use-logprobs" if use_logprobs else ""
 
 use_templates_dir = TEMPLATES_DIR / "ours_v2"
 
@@ -53,14 +58,17 @@ for template_file in template_files:
     print(template_base)
 
     out_dir = RESULTS_DIR / f"tokens_max_{TOKENS_MAX}" / results_base / template_base
-    result_path = out_dir / f"{MODEL}_nexamples-{NUM_EXAMPLES}.parquet"
+    result_path = out_dir / f"{MODEL}_nexamples-{NUM_EXAMPLES}{use_logprobs_suffix}.parquet"
     if not result_path.exists():
         arg_strs = [
             f"--template_file {template_file}",
             f"--model {MODEL}",
             f"--tokens_max {TOKENS_MAX}",
             f"--num_examples {NUM_EXAMPLES}",
+            f"--max-concurrency {max_concurrency}",
         ]
+        if use_logprobs:
+            arg_strs.append("--logprobs")
 
         args = parser.parse_args([arg for argstr in arg_strs for arg in argstr.split()])
 
@@ -96,6 +104,6 @@ outfile = out_dir = (
     / f"tokens_max_{TOKENS_MAX}"
     / results_base
     / template_parent
-    / f"combined_{MODEL}_nexamples-{NUM_EXAMPLES}.parquet"
+    / f"combined_{MODEL}_nexamples-{NUM_EXAMPLES}{use_logprobs_suffix}.parquet"
 )
 dataset.to_parquet(outfile)
