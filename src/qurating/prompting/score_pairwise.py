@@ -127,9 +127,20 @@ class Comparator:
             return np.random.randint(self.args.tokens_min, self.args.tokens_max + 1)
 
     async def __acall__(self, examples, indices):
-        texts, caller, num_tokens, n, votes_a, votes_b, predictions = self._pre_call(
-            examples, indices
-        )
+        cache_hit, pre_call_output = self._pre_call(examples, indices)
+        if cache_hit:
+            cached_data = pre_call_output
+            if not self.args.flat_output_format:
+                return {
+                    **cached_data,
+                    "examples": [examples],
+                }
+            else:
+                return cached_data
+        else:
+            texts, caller, num_tokens, n, votes_a, votes_b, predictions = (
+                pre_call_output
+            )
         probs = np.full((2, n, n), fill_value=-100.0)
         async with self.semaphore:
             for i in range(n):
@@ -175,9 +186,20 @@ class Comparator:
         )
 
     def __call__(self, examples, indices):
-        texts, caller, num_tokens, n, votes_a, votes_b, predictions = self._pre_call(
-            examples, indices
-        )
+        cache_hit, pre_call_output = self._pre_call(examples, indices)
+        if cache_hit:
+            cached_data = pre_call_output
+            if not self.args.flat_output_format:
+                return {
+                    **cached_data,
+                    "examples": [examples],
+                }
+            else:
+                return cached_data
+        else:
+            texts, caller, num_tokens, n, votes_a, votes_b, predictions = (
+                pre_call_output
+            )
 
         probs = np.full((2, n, n), fill_value=-100.0)
         for i in range(n):
@@ -218,6 +240,14 @@ class Comparator:
         )
 
     def _pre_call(self, examples, indices):
+        cache_file = (
+            self.cache_dir / f"cache_{'-'.join(str(idx) for idx in indices)}.pkl"
+        )
+        if cache_file.exists():
+            with open(cache_file, "rb") as f:
+                cached_data = pickle.load(f)
+            return True, cached_data
+
         num_tokens = self.sample_num_tokens(indices)
 
         if self.args.token_field in examples:
@@ -242,7 +272,7 @@ class Comparator:
         caller = get_caller(self.args.model)
         # caller = self.args.model
 
-        return texts, caller, num_tokens, n, votes_a, votes_b, predictions
+        return False, (texts, caller, num_tokens, n, votes_a, votes_b, predictions)
 
     def _post_call(
         self, examples, indices, texts, n, votes_a, votes_b, predictions, probs
@@ -271,8 +301,8 @@ class Comparator:
 
         if not self.args.flat_output_format:
             out = {
-                "indices": [indices],
                 "examples": [examples],
+                "indices": [indices],
                 "texts": [texts],
                 "votes_a": [votes_a.tolist()],
                 "votes_b": [votes_b.tolist()],
