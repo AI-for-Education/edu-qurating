@@ -135,6 +135,7 @@ def parse_args():
         default=20000,
         help="Number of examples to use for training",
     )
+    parser.add_argument("--logprobs", type=str, default="generations")
     parser.add_argument(
         "--save-steps", type=int, default=200, help="Number of training epochs"
     )
@@ -201,6 +202,7 @@ def load_dataset_and_setup_args(args):
     seed = args.dataset_seed
     model_name = args.judgement_model
     num_examples = args.num_examples
+    use_logprobs_suffix = "_use-logprobs" if args.logprobs == "logprobs" else ""
 
     dataset_base = f"fwe-fortified_sampled-{n_samples}_seed-{seed}"
     dataset_file = (
@@ -208,7 +210,7 @@ def load_dataset_and_setup_args(args):
         / f"tokens_max_{args.dataset_max_tokens}"
         / dataset_base
         / args.dataset_templates
-        / f"combined_{model_name}_nexamples-{num_examples}.parquet"
+        / f"combined_{model_name}_nexamples-{num_examples}{use_logprobs_suffix}.parquet"
     )
 
     # Validate dataset file exists and is readable

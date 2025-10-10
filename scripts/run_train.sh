@@ -24,7 +24,15 @@ labeltemp=${LABELTEMP:-1.0}
 # which labels to predict
 label_index=${LABELINDEX:-"all"}
 
-run_name="qurater_$(basename $model)_bsz${bsz}_lr${lr}_epochs${epochs}_warmup${warmup}_conf${confidence}_labeltemp${labeltemp}${suffix}"
+dataset_templates_base=${DS_TEMPL_BASE:-ours_v2}
+dataset_nsamples=${DS_NSAMPLES:-500000}
+dataset_nexamples=${DS_NEXAMPLES:-20000}
+dataset_tokens_max=${DS_TOKENSMAX:-2048}
+dataset_seed=${DS_SEED:-72353534}
+dataset_model=${DS_MODEL:-gpt-4.1-mini}
+dataset_logprobs=${DS_USELOGPROBS:-logprobs}
+
+run_name="qurater_$(basename $model)_bsz${bsz}_lr${lr}_epochs${epochs}_warmup${warmup}_conf${confidence}_labeltemp${labeltemp}${suffix}_ds-${dataset_templates_base}-${dataset_nsamples}-${dataset_nexamples}-${dataset_tokens_max}-${dataset_seed}-${dataset_model}-${dataset_logprobs}"
 out_dir="checkpoints-preferences/$run_name"
 mkdir -p $out_dir
 
@@ -95,12 +103,13 @@ base_arguments=(
     # --do_eval
     # --do_train
     --model-name $model
-    --dataset-samples 20000
-    --dataset-seed 72353534
-    --dataset-templates ours_v2
-    --dataset-max-tokens 512
-    --judgement-model gpt-5-mini-2025-08-07-minimal
-    --num-examples 20000
+    --dataset-samples $dataset_nsamples
+    --dataset-seed $dataset_seed
+    --dataset-templates $dataset_templates_base
+    --dataset-max-tokens $dataset_tokens_max
+    --judgement-model $dataset_model
+    --num-examples $dataset_nexamples
+    --logprobs $dataset_logprobs
 
     --output-dir $out_dir
     # --log_level info
