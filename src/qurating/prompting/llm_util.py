@@ -119,7 +119,7 @@ async def aquery_model_logprobs(
                 retry_count += 1
             else:
                 print(f"API failed for {retry_count} times ({error})")
-                probs = [-100, -100]
+                probs = [[-100, -100]]
         return probs
     
 

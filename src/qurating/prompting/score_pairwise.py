@@ -246,7 +246,10 @@ class Comparator:
         if cache_file.exists():
             with open(cache_file, "rb") as f:
                 cached_data = pickle.load(f)
-            return True, cached_data
+            probs = cached_data["average"]
+            n_nodata = int((np.array(probs) < 0).sum())
+            if n_nodata == len(probs[0]):
+                return True, cached_data
 
         num_tokens = self.sample_num_tokens(indices)
 
