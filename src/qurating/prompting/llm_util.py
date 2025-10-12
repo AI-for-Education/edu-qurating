@@ -189,7 +189,7 @@ def query_model_logprobs(
                 time.sleep(timeout)
             elif retry_count < retries:
                 print(f"API retry for {retry_count} times ({error})")
-                time.sleep(2)
+                time.sleep(50)
                 retry_count += 1
             else:
                 print(f"API failed for {retry_count} times ({error})")

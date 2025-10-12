@@ -18,8 +18,8 @@ dataset_base = f"fwe-fortified_sampled-{n_samples}_seed-{seed}"
 
 # %%
 from_num_examples = 20000
-to_num_examples = 500000
-TOKENS_MAX = 2048
+to_num_examples = 100000
+TOKENS_MAX = 512
 MODEL = "gpt-4.1-mini"
 
 max_concurrency = 20
@@ -47,9 +47,11 @@ for template_file in template_files:
         Path(CACHE_DIR)
         / f"{template_file.stem}_{MODEL}_{TOKENS_MAX}_{to_num_examples}{use_logprobs_suffix}"
     )        
-    print(from_cache_dir)
-    print(to_cache_dir)
     if from_cache_dir.exists():
+        print(from_cache_dir)
+        print(to_cache_dir)
         to_cache_dir.mkdir(exist_ok=True, parents=True)
         for fl in from_cache_dir.glob("*"):
             copyfile(fl, to_cache_dir / fl.name)
+    else:
+        print(f"Doesn't exist: {from_cache_dir}")

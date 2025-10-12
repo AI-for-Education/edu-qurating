@@ -28,15 +28,15 @@ else:
     )
 
 # %%
-NUM_EXAMPLES = 20000
-TOKENS_MAX = 2048
+NUM_EXAMPLES = 100000
+TOKENS_MAX = 512
 MODEL = "gpt-4.1-mini"
 # MODEL = "gpt-5-mini-2025-08-07-minimal"
 # MODEL = "gemini-2.5-flash-preview-05-20"
 # MODEL = "claude-sonnet-4-5-20250929"
 # MODEL = "claude-3-5-haiku-20241022"
 
-max_concurrency = 20
+max_concurrency = 50
 use_logprobs = True
 use_logprobs_suffix = "_use-logprobs" if use_logprobs else ""
 
@@ -59,7 +59,8 @@ for template_file in template_files:
 
     out_dir = RESULTS_DIR / f"tokens_max_{TOKENS_MAX}" / results_base / template_base
     result_path = out_dir / f"{MODEL}_nexamples-{NUM_EXAMPLES}{use_logprobs_suffix}.parquet"
-    if not result_path.exists():
+    # if not result_path.exists():
+    if True:
         arg_strs = [
             f"--template_file {template_file}",
             f"--model {MODEL}",
