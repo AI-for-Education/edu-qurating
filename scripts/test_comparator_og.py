@@ -59,8 +59,10 @@ for template_file in template_files:
 
     out_dir = RESULTS_DIR / f"tokens_max_{TOKENS_MAX}" / results_base / template_base
     result_path = out_dir / f"{MODEL}_nexamples-{NUM_EXAMPLES}{use_logprobs_suffix}.parquet"
-    # if not result_path.exists():
-    if True:
+    if NUM_EXAMPLES > 20000:
+        result_path = result_path.parent / result_path.stem
+    if not result_path.exists():
+    # if True:
         arg_strs = [
             f"--template_file {template_file}",
             f"--model {MODEL}",
@@ -79,9 +81,14 @@ for template_file in template_files:
         output = comp.apply(dataset)
 
         out_dir.mkdir(exist_ok=True, parents=True)
-        output.to_parquet(result_path)
-
-    results_ds = Dataset.from_parquet(str(out_dir / result_path))
+        if NUM_EXAMPLES > 20000:
+            output.save_to_disk(result_path, max_shard_size="200MB")
+        else:
+            output.to_parquet(result_path)
+    if NUM_EXAMPLES > 20000:
+        results_ds = Dataset.load_from_disk(result_path)
+    else:
+        results_ds = Dataset.from_parquet(str(result_path))
     results_dict[template_file.stem] = results_ds
 
 # %%
@@ -99,12 +106,21 @@ for shared_column in shared_columns:
     datasets = [datasets[0]] + [ds.remove_columns(shared_column) for ds in datasets[1:]]
 
 dataset: Dataset = concatenate_datasets(datasets, axis=1)
-
-outfile = out_dir = (
-    RESULTS_DIR
-    / f"tokens_max_{TOKENS_MAX}"
-    / results_base
-    / template_parent
-    / f"combined_{MODEL}_nexamples-{NUM_EXAMPLES}{use_logprobs_suffix}.parquet"
-)
-dataset.to_parquet(outfile)
+if len(dataset) > 10000:
+    outfile = out_dir = (
+        RESULTS_DIR
+        / f"tokens_max_{TOKENS_MAX}"
+        / results_base
+        / template_parent
+        / f"combined_{MODEL}_nexamples-{NUM_EXAMPLES}{use_logprobs_suffix}"
+    )
+    dataset.save_to_disk(outfile, max_shard_size="200MB")
+else:
+    outfile = out_dir = (
+        RESULTS_DIR
+        / f"tokens_max_{TOKENS_MAX}"
+        / results_base
+        / template_parent
+        / f"combined_{MODEL}_nexamples-{NUM_EXAMPLES}{use_logprobs_suffix}.parquet"
+    )
+    dataset.to_parquet(outfile)
