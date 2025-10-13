@@ -115,11 +115,11 @@ async def aquery_model_logprobs(
                 await asyncio.sleep(timeout)
             elif retry_count < retries:
                 print(f"API retry for {retry_count} times ({error})")
-                await asyncio.sleep(2)
+                await asyncio.sleep(50)
                 retry_count += 1
             else:
                 print(f"API failed for {retry_count} times ({error})")
-                probs = [[-100, -100]]
+                return [[-100, -100]]
         return probs
     
 
@@ -193,7 +193,7 @@ def query_model_logprobs(
                 retry_count += 1
             else:
                 print(f"API failed for {retry_count} times ({error})")
-                probs = [-100, -100]
+                return [[-100, -100]]
         return probs
 
 
