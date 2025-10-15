@@ -36,7 +36,7 @@ MODEL = "gpt-4.1-mini"
 # MODEL = "claude-sonnet-4-5-20250929"
 # MODEL = "claude-3-5-haiku-20241022"
 
-max_concurrency = 50
+max_concurrency = 100
 use_logprobs = True
 use_logprobs_suffix = "_use-logprobs" if use_logprobs else ""
 
