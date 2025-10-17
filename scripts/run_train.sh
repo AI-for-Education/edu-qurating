@@ -10,7 +10,7 @@ seq=${SEQ:-16}
 # peak learning rate
 lr=${LR:-5e-5}
 # number of epochs
-epochs=${EPOCHS:-20}
+epochs=${EPOCHS:-4}
 # warmup ratio
 warmup=${WARMUP:-0.1}
 # save model every n steps
@@ -26,8 +26,8 @@ label_index=${LABELINDEX:-"all"}
 
 dataset_templates_base=${DS_TEMPL_BASE:-ours_v2}
 dataset_nsamples=${DS_NSAMPLES:-500000}
-dataset_nexamples=${DS_NEXAMPLES:-20000}
-dataset_tokens_max=${DS_TOKENSMAX:-2048}
+dataset_nexamples=${DS_NEXAMPLES:-100000}
+dataset_tokens_max=${DS_TOKENSMAX:-512}
 dataset_seed=${DS_SEED:-72353534}
 dataset_model=${DS_MODEL:-gpt-4.1-mini}
 dataset_logprobs=${DS_USELOGPROBS:-logprobs}
