@@ -161,7 +161,7 @@ class Comparator:
                             caller,
                             system_prompt=self.args.system_prompt,
                             log_file_path=str(LOG_DIR / "api_cost.jsonl"),
-                            retries=3,
+                            retries=5,
                         )
                         probs[:, i, j] = np.array(out_probs)
                     else:
@@ -219,7 +219,7 @@ class Comparator:
                         caller,
                         system_prompt=self.args.system_prompt,
                         log_file_path=str(LOG_DIR / "api_cost.jsonl"),
-                        retries=3,
+                        retries=5,
                     )
                     probs[:, i, j] = np.array(out_probs)
                 else:
