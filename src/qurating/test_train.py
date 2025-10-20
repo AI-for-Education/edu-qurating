@@ -13,6 +13,7 @@ import sys
 import os
 import logging
 import argparse
+from pathlib import Path
 
 from datasets import Dataset
 from transformers import (
@@ -45,10 +46,30 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def validate_dataset_folder(folder_path):
+    folder_path = Path(folder_path)
+    """Validate that the dataset folder exists and is readable"""
+    if not folder_path.exists():
+        logger.info(f"Dataset folder not found: {folder_path}")
+        logger.info(
+            "Please ensure the dataset has been generated using test_dataset_og.py"
+        )
+        return False
+    try:
+        test_ds = Dataset.load_from_disk(folder_path)
+        if len(test_ds) == 0:
+            logger.error("Dataset file is empty")
+            return False
+        logger.info(f"Dataset validation successful: {len(test_ds)} examples")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to load dataset: {e}")
+        return False
+
 def validate_dataset_file(file_path):
     """Validate that the dataset file exists and is readable"""
     if not os.path.exists(file_path):
-        logger.error(f"Dataset file not found: {file_path}")
+        logger.info(f"Dataset file not found: {file_path}")
         logger.info(
             "Please ensure the dataset has been generated using test_dataset_og.py"
         )
@@ -215,16 +236,23 @@ def load_dataset_and_setup_args(args):
 
     # Validate dataset file exists and is readable
     logger.info(f"Looking for dataset at: {dataset_file}")
+    ds_is_file = True
     if not validate_dataset_file(dataset_file):
-        logger.error("Dataset validation failed. Cannot proceed.")
-        logger.info("\nTo generate the required dataset, run:")
-        logger.info("  uv run python scripts/test_dataset_og.py")
-        logger.info("  uv run python scripts/test_comparator_og.py")
-        raise FileNotFoundError(f"Required dataset not found: {dataset_file}")
+        if not validate_dataset_folder(dataset_file.parent / dataset_file.stem):
+            logger.error("Dataset validation failed. Cannot proceed.")
+            logger.info("\nTo generate the required dataset, run:")
+            logger.info("  uv run python scripts/test_dataset_og.py")
+            logger.info("  uv run python scripts/test_comparator_og.py")
+            raise FileNotFoundError(f"Required dataset not found: {dataset_file}")
+        else:
+            ds_is_file = False
 
     # Load the dataset
     try:
-        dataset = Dataset.from_parquet(str(dataset_file))
+        if ds_is_file:
+            dataset = Dataset.from_parquet(str(dataset_file))
+        else:
+            dataset = Dataset.load_from_disk(dataset_file.parent / dataset_file.stem)
         logger.info(f"Successfully loaded dataset with {len(dataset)} examples")
     except Exception as e:
         logger.error(f"Failed to load dataset: {e}")
