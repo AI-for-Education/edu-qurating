@@ -28,7 +28,7 @@ else:
     )
 
 # %%
-NUM_EXAMPLES = 100000
+NUM_EXAMPLES = 200000
 TOKENS_MAX = 512
 MODEL = "gpt-4.1-mini"
 # MODEL = "gpt-5-mini-2025-08-07-minimal"
@@ -107,7 +107,7 @@ for shared_column in shared_columns:
 
 dataset: Dataset = concatenate_datasets(datasets, axis=1)
 if len(dataset) > 10000:
-    outfile = out_dir = (
+    outfile = (
         RESULTS_DIR
         / f"tokens_max_{TOKENS_MAX}"
         / results_base
@@ -116,7 +116,7 @@ if len(dataset) > 10000:
     )
     dataset.save_to_disk(outfile, max_shard_size="200MB")
 else:
-    outfile = out_dir = (
+    outfile = (
         RESULTS_DIR
         / f"tokens_max_{TOKENS_MAX}"
         / results_base
