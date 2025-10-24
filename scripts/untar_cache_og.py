@@ -1,6 +1,6 @@
 # %%
 from pathlib import Path
-from shutil import copyfile
+import tarfile
 
 from qurating.constants import TEMPLATES_DIR, CACHE_DIR
 
@@ -11,11 +11,9 @@ dataset_base = f"fwe-fortified_sampled-{n_samples}_seed-{seed}"
 
 # %%
 from_num_examples = 200000
-to_num_examples = 300000
 TOKENS_MAX = 512
 MODEL = "gpt-4.1-mini"
 
-max_concurrency = 20
 use_logprobs = True
 use_logprobs_suffix = "_use-logprobs" if use_logprobs else ""
 
@@ -32,19 +30,19 @@ for template_file in template_files:
         template_parent = "default"
     template_base = f"{template_parent}/{template_file.stem}"
 
+    from_cache_file = (
+        Path(CACHE_DIR)
+        / f"{template_file.stem}_{MODEL}_{TOKENS_MAX}_{from_num_examples}{use_logprobs_suffix}.tar"
+    )
+
     from_cache_dir = (
         Path(CACHE_DIR)
         / f"{template_file.stem}_{MODEL}_{TOKENS_MAX}_{from_num_examples}{use_logprobs_suffix}"
     )
-    to_cache_dir = (
-        Path(CACHE_DIR)
-        / f"{template_file.stem}_{MODEL}_{TOKENS_MAX}_{to_num_examples}{use_logprobs_suffix}"
-    )        
-    if from_cache_dir.exists():
-        print(from_cache_dir)
-        print(to_cache_dir)
-        to_cache_dir.mkdir(exist_ok=True, parents=True)
-        for fl in from_cache_dir.glob("*"):
-            copyfile(fl, to_cache_dir / fl.name)
+
+    if from_cache_file.exists():
+        print(from_cache_file)
+        with tarfile.open(from_cache_file) as tf:
+            tf.extractall(path=from_cache_file.parent, filter="data")
     else:
-        print(f"Doesn't exist: {from_cache_dir}")
+        print(f"Doesn't exist: {from_cache_file}")
