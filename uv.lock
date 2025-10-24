@@ -1,4 +1,5 @@
 version = 1
+revision = 1
 requires-python = "==3.12.*"
 resolution-markers = [
     "sys_platform == 'linux'",
@@ -927,7 +928,6 @@ dependencies = [
     { name = "anthropic" },
     { name = "datasets" },
     { name = "fabdata-llm" },
-    { name = "flash-attn", marker = "sys_platform == 'linux'" },
     { name = "joblib" },
     { name = "matplotlib" },
     { name = "numpy" },
@@ -949,6 +949,9 @@ dev = [
     { name = "ipykernel" },
     { name = "ipywidgets" },
 ]
+gpu = [
+    { name = "flash-attn", marker = "sys_platform == 'linux'" },
+]
 
 [package.metadata]
 requires-dist = [
@@ -956,7 +959,6 @@ requires-dist = [
     { name = "anthropic", specifier = ">=0.49.0" },
     { name = "datasets", specifier = ">=4.1.1" },
     { name = "fabdata-llm", git = "https://github.com/AI-for-Education/fabdata-llm.git?rev=v0.29.0" },
-    { name = "flash-attn", marker = "sys_platform == 'linux'", specifier = ">=2.8.3" },
     { name = "joblib", specifier = ">=1.5.1" },
     { name = "matplotlib", specifier = ">=3.10.5" },
     { name = "numpy", specifier = ">=2.1.2" },
@@ -978,6 +980,7 @@ dev = [
     { name = "ipykernel", specifier = ">=6.29.5" },
     { name = "ipywidgets", specifier = ">=8.1.7" },
 ]
+gpu = [{ name = "flash-attn", marker = "sys_platform == 'linux'", specifier = ">=2.8.3" }]
 
 [[package]]
 name = "fabdata-llm"

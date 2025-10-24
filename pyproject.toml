@@ -31,7 +31,6 @@ dependencies = [
     "accelerate>=1.10.1",
     "tqdm>=4.66.5",
     "datasets>=4.1.1",
-    "flash-attn>=2.8.3; sys_platform=='linux'",
     "wandb>=0.22.1",
     "tiktoken>=0.12.0",
 ]
@@ -44,6 +43,10 @@ dev = [
     "ipykernel>=6.29.5",
     "ipywidgets>=8.1.7",
 ]
+linux-gpu = [
+    "flash-attn>=2.8.3; sys_platform=='linux'",
+]
+
 
 # [tool.uv]
 # no-build-isolation-package = ['flash-attn']
