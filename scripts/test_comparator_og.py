@@ -28,7 +28,7 @@ else:
     )
 
 # %%
-NUM_EXAMPLES = 200000
+NUM_EXAMPLES = 400000
 TOKENS_MAX = 512
 MODEL = "gpt-4.1-mini"
 # MODEL = "gpt-5-mini-2025-08-07-minimal"
@@ -61,8 +61,8 @@ for template_file in template_files:
     result_path = out_dir / f"{MODEL}_nexamples-{NUM_EXAMPLES}{use_logprobs_suffix}.parquet"
     if NUM_EXAMPLES > 20000:
         result_path = result_path.parent / result_path.stem
-    if not result_path.exists():
-    # if True:
+    # if not result_path.exists():
+    if True:
         arg_strs = [
             f"--template_file {template_file}",
             f"--model {MODEL}",
