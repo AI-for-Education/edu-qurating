@@ -949,7 +949,7 @@ dev = [
     { name = "ipykernel" },
     { name = "ipywidgets" },
 ]
-gpu = [
+linux-gpu = [
     { name = "flash-attn", marker = "sys_platform == 'linux'" },
 ]
 
@@ -980,7 +980,7 @@ dev = [
     { name = "ipykernel", specifier = ">=6.29.5" },
     { name = "ipywidgets", specifier = ">=8.1.7" },
 ]
-gpu = [{ name = "flash-attn", marker = "sys_platform == 'linux'", specifier = ">=2.8.3" }]
+linux-gpu = [{ name = "flash-attn", marker = "sys_platform == 'linux'", specifier = ">=2.8.3" }]
 
 [[package]]
 name = "fabdata-llm"
