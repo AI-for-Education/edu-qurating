@@ -10,8 +10,8 @@ seed = 72353534
 dataset_base = f"fwe-fortified_sampled-{n_samples}_seed-{seed}"
 
 # %%
-from_num_examples = 300000
-to_num_examples = 400000
+from_num_examples = 400000
+to_num_examples = 500000
 TOKENS_MAX = 512
 MODEL = "gpt-4.1-mini"
 

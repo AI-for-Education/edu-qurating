@@ -28,7 +28,8 @@ else:
     )
 
 # %%
-NUM_EXAMPLES = 400000
+NUM_EXAMPLES = 100000
+OFFSET = 400000
 TOKENS_MAX = 512
 MODEL = "gpt-4.1-mini"
 # MODEL = "gpt-5-mini-2025-08-07-minimal"
@@ -39,6 +40,8 @@ MODEL = "gpt-4.1-mini"
 max_concurrency = 100
 use_logprobs = True
 use_logprobs_suffix = "_use-logprobs" if use_logprobs else ""
+
+offset_suffix = f"_offset-{OFFSET}" if OFFSET != 0 else ""
 
 use_templates_dir = TEMPLATES_DIR / "ours_v2"
 
@@ -58,7 +61,10 @@ for template_file in template_files:
     print(template_base)
 
     out_dir = RESULTS_DIR / f"tokens_max_{TOKENS_MAX}" / results_base / template_base
-    result_path = out_dir / f"{MODEL}_nexamples-{NUM_EXAMPLES}{use_logprobs_suffix}.parquet"
+    result_path = (
+        out_dir
+        / f"{MODEL}_nexamples-{NUM_EXAMPLES}{offset_suffix}{use_logprobs_suffix}.parquet"
+    )
     if NUM_EXAMPLES > 20000:
         result_path = result_path.parent / result_path.stem
     # if not result_path.exists():
@@ -69,6 +75,7 @@ for template_file in template_files:
             f"--tokens_max {TOKENS_MAX}",
             f"--num_examples {NUM_EXAMPLES}",
             f"--max-concurrency {max_concurrency}",
+            f"--offset {OFFSET}",
         ]
         if use_logprobs:
             arg_strs.append("--logprobs")
@@ -112,7 +119,7 @@ if len(dataset) > 10000:
         / f"tokens_max_{TOKENS_MAX}"
         / results_base
         / template_parent
-        / f"combined_{MODEL}_nexamples-{NUM_EXAMPLES}{use_logprobs_suffix}"
+        / f"combined_{MODEL}_nexamples-{NUM_EXAMPLES}{offset_suffix}{use_logprobs_suffix}"
     )
     dataset.save_to_disk(outfile, max_shard_size="200MB")
 else:
@@ -121,6 +128,6 @@ else:
         / f"tokens_max_{TOKENS_MAX}"
         / results_base
         / template_parent
-        / f"combined_{MODEL}_nexamples-{NUM_EXAMPLES}{use_logprobs_suffix}.parquet"
+        / f"combined_{MODEL}_nexamples-{NUM_EXAMPLES}{offset_suffix}{use_logprobs_suffix}.parquet"
     )
     dataset.to_parquet(outfile)
