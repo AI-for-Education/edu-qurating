@@ -10,7 +10,7 @@ dataset_model=${DS_MODEL:-gpt-4.1-mini}
 dataset_nexamples=${DS_NEXAMPLES:-100000}
 dataset_offset_suffix=${DS_OFFSET:-_offset-400000}
 dataset_logprobs_suffix=${DS_USELOGPROBS:-_use-logprobs}
-model=${MODEL:-qurater_Qwen3-Reranker-0.6B-seq-cls_bsz512_lr5e-5_epochs2_warmup0.1_conf0.5_labeltemp1.0_ds-ours_v2-500000-200000-512-72353534-gpt-4.1-mini-logprobs}
+model=${MODEL:-qurater_Qwen3-Reranker-4B-seq-cls_bsz512_lr5e-5_epochs2_warmup0.1_conf0.5_labeltemp1.0_ds-ours_v2-500000-200000-512-72353534-gpt-4.1-mini-logprobs}
 checkpoint=${CHECKPOINT:-checkpoint-352}
 
 header="uv run python ./scripts/run_inference_pairwise.py \
