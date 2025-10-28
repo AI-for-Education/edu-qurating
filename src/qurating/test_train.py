@@ -282,11 +282,15 @@ def setup_model_and_tokenizer(args, label_names):
 
     # Load config and model
     config = AutoConfig.from_pretrained(args.model_name)
-    config.num_labels = len(label_names)
     config.pad_token_id = 0
 
     # Use model factory for Flash Attention preference with automatic fallback
-    model = create_model(args.model_name, config=config, dtype=torch.bfloat16)
+    model = create_model(
+        args.model_name,
+        num_labels=len(label_names),
+        config=config,
+        dtype=torch.bfloat16,
+    )
 
     return model, tokenizer
 

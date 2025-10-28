@@ -2,7 +2,7 @@
 
 # > Default arguments - can be overriden by environment variables:
 # architecture to train, must be compatible with the Llama architecture
-model=${MODEL:-princeton-nlp/Sheared-LLaMA-1.3b}
+model=${MODEL:-tomaarsen/Qwen3-Reranker-4B-seq-cls}
 # total batch size across all devices with gradient accumulation
 bsz=${BSZ:-512}
 # number of sequences per device
@@ -26,7 +26,7 @@ label_index=${LABELINDEX:-"all"}
 
 dataset_templates_base=${DS_TEMPL_BASE:-ours_v2}
 dataset_nsamples=${DS_NSAMPLES:-500000}
-dataset_nexamples=${DS_NEXAMPLES:-400000}
+dataset_nexamples=${DS_NEXAMPLES:-200000}
 dataset_tokens_max=${DS_TOKENSMAX:-512}
 dataset_seed=${DS_SEED:-72353534}
 dataset_model=${DS_MODEL:-gpt-4.1-mini}

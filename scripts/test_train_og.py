@@ -17,6 +17,7 @@ import matplotlib.pyplot as plt
 
 from qurating.constants import RESULTS_DIR
 from qurating.modeling.model_factory import create_model
+from qurating.modeling.flash_llama import LlamaForSequenceClassification
 
 load_dotenv(override=True)
 
@@ -95,8 +96,11 @@ class DataCollator:
 # %%
 ## load the tokenizer for Sheared-LLaMa-1.3b
 
+# model = "princeton-nlp/Sheared-LLaMA-1.3b"
+model = "tomaarsen/Qwen3-Reranker-0.6B-seq-cls"
+
 tokenizer = AutoTokenizer.from_pretrained(
-    "princeton-nlp/Sheared-LLaMA-1.3b",
+    model,
     use_fast=True,
     legacy=False,
 )
@@ -143,14 +147,20 @@ dc = DataCollator(args, (), tokenizer=tokenizer)
 
 # %%
 # load config for Sheared-LLaMA-1.3b
-config = AutoConfig.from_pretrained("princeton-nlp/Sheared-LLaMA-1.3b")
+# model = "princeton-nlp/Sheared-LLaMA-1.3b"
+config = AutoConfig.from_pretrained(model)
 # adjust the number of output labels to match
-config.num_labels = len(label_names)
-
+# config.num_labels = len(label_names)
 # instantiate model from updated config
+# model = AutoModelForSequenceClassification.from_pretrained(
+#     model, config=config
+# )
+
 model = AutoModelForSequenceClassification.from_pretrained(
-    "princeton-nlp/Sheared-LLaMA-1.3b", config=config
+    model, config=config, torch_dtype=torch.float16, attn_implementation="flash_attention_2"
 )
+
+# model.score = torch.nn.Linear(in_features=1, out_features=len(label_names))
 
 # %%
 # pass first 4 rows of dataset to DataCollator
@@ -201,7 +211,9 @@ print("Cached:   ", round(torch.cuda.memory_reserved(0) / 1024**3, 1), "GB")
 
 # %%
 model = create_model(
-    "./test_training_output/test_training_output/test_run_20k_epochs-20/checkpoint-360", config=config, dtype=torch.bfloat16
+    "./test_training_output/test_training_output/test_run_20k_epochs-20/checkpoint-360",
+    config=config,
+    dtype=torch.bfloat16,
 )
 
 model = model.to(torch.device("cuda:0"))

@@ -11,7 +11,7 @@ import pandas as pd
 from pathlib import Path
 from typing import List, Dict, Any
 from datasets import Dataset
-from transformers import AutoTokenizer
+from transformers import AutoTokenizer, AutoConfig
 from qurating.modeling.model_factory import create_model
 
 
@@ -63,8 +63,16 @@ class ModelAnnotator:
         self.model_name = model_name
         self.labels = labels
         self.device_batch_size = device_batch_size
+        config = AutoConfig.from_pretrained(model_name)
+        config.num_labels = len(labels)
 
-        self.model = create_model(model_name, config=None, torch_dtype=torch.bfloat16)
+        self.model = create_model(
+            model_name,
+            num_labels=len(labels),
+            reinit_score_layer=False,
+            config=config,
+            torch_dtype=torch.bfloat16,
+        )
         self.model.config.pad_token_id = 0
         self.model.eval()
 
@@ -73,9 +81,9 @@ class ModelAnnotator:
         self.model.to(self.device)
 
         self.num_labels = len(labels)
-        assert (
-            self.num_labels == self.model.config.num_labels
-        ), f"Number of labels ({self.num_labels}) does not match model config ({self.model.config.num_labels})"
+        assert self.num_labels == self.model.config.num_labels, (
+            f"Number of labels ({self.num_labels}) does not match model config ({self.model.config.num_labels})"
+        )
 
     def __getstate__(self):
         return {
