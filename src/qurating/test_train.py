@@ -66,6 +66,7 @@ def validate_dataset_folder(folder_path):
         logger.error(f"Failed to load dataset: {e}")
         return False
 
+
 def validate_dataset_file(file_path):
     """Validate that the dataset file exists and is readable"""
     if not os.path.exists(file_path):
@@ -191,6 +192,9 @@ def parse_args():
         "--learning-rate", type=float, default=5e-5, help="Learning rate for training"
     )
     parser.add_argument(
+        "--warmup-ratio", type=float, default=0.1, help="Warmup ratio for training"
+    )
+    parser.add_argument(
         "--output-dir",
         type=str,
         default="./test_training_output",
@@ -211,6 +215,7 @@ def parse_args():
         default=0.0,
         help="Confidence threshold for filtering training examples",
     )
+    parser.add_argument("--label-temperature", type=float, default=1.0)
     parser.add_argument("--seed", type=int, default=42, help="Random seed for training")
 
     return parser.parse_args()
@@ -314,7 +319,7 @@ def setup_training_args_and_collator(args, label_names, tokenizer):
             / args.num_nodes
         ),
         learning_rate=args.learning_rate,
-        warmup_ratio=0.1,
+        warmup_ratio=args.warmup_ratio,
         weight_decay=0.1,
         max_grad_norm=1.0,
         logging_steps=10,
@@ -331,7 +336,7 @@ def setup_training_args_and_collator(args, label_names, tokenizer):
         seed=args.seed,
         # Confidence and labeling parameters
         confidence_threshold=args.confidence_threshold,
-        label_temperature=1.0,
+        label_temperature=args.label_temperature,
         log_confidences=[0.5, 0.8],
         greater_is_better=False,
         metric_for_best_model="eval_validation_loss",
@@ -472,12 +477,14 @@ def train():
     print(f"  Epochs: {args.epochs}")
     print(f"  Batch size per device: {args.batch_size_per_device}")
     print(
-        f"  Gradient accumulation steps: {int(
-            args.batch_size_total
-            / args.batch_size_per_device
-            / args.num_gpus
-            / args.num_nodes
-        )}"
+        f"  Gradient accumulation steps: {
+            int(
+                args.batch_size_total
+                / args.batch_size_per_device
+                / args.num_gpus
+                / args.num_nodes
+            )
+        }"
     )
     print(f"  Learning rate: {args.learning_rate}")
     print(f"  Output directory: {args.output_dir}")
