@@ -33,6 +33,7 @@ dependencies = [
     "datasets>=4.1.1",
     "wandb>=0.22.1",
     "tiktoken>=0.12.0",
+    "huggingface-hub[cli]>=0.35.1",
 ]
 
 
