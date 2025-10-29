@@ -24,7 +24,7 @@ from transformers import (
 import torch
 from dotenv import load_dotenv
 
-from qurating.constants import RESULTS_DIR
+from qurating.constants import RESULTS_DIR, ROOT
 
 from qurating.training import (
     PreferenceTrainer,
@@ -217,6 +217,7 @@ def parse_args():
     )
     parser.add_argument("--label-temperature", type=float, default=1.0)
     parser.add_argument("--seed", type=int, default=42, help="Random seed for training")
+    parser.add_argument("--fsdp-config", type=str, default="fsdp_config.json")
 
     return parser.parse_args()
 
@@ -344,7 +345,9 @@ def setup_training_args_and_collator(args, label_names, tokenizer):
         log_confidences=[0.5, 0.8],
         greater_is_better=False,
         metric_for_best_model="eval_validation_loss",
-        fsdp="auto_wrap",
+        # fsdp="auto_wrap",
+        fsdp=True,
+        fsdp_config=str(ROOT / args.fsdp_config),
         ddp_find_unused_parameters=False,
     )
 

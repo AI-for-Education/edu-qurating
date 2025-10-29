@@ -2,7 +2,7 @@
 
 # > Default arguments - can be overriden by environment variables:
 # architecture to train, must be compatible with the Llama architecture
-model=${MODEL:-tomaarsen/Qwen3-Reranker-4B-seq-cls}
+model=${MODEL:-google/gemma-3-4b-pt}
 # total batch size across all devices with gradient accumulation
 bsz=${BSZ:-512}
 # number of sequences per device
@@ -144,6 +144,7 @@ base_arguments=(
     # --bf16
     # --ddp_find_unused_parameters false
     # --fsdp auto_wrap
+    --fsdp-config fsdp_config_gemma.json
 
     # Depending on model size and sequence length, gradient checkpointing might result in higher throughput
     # --gradient_checkpointing

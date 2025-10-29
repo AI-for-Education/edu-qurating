@@ -1,8 +1,14 @@
 """Model factory for creating sequence classification models with Flash Attention preference."""
 
 import logging
-from transformers import AutoModelForSequenceClassification
+from transformers import AutoModelForSequenceClassification, LlamaForSequenceClassification
 import torch
+
+try:
+    from .flash_llama import LlamaForSequenceClassification as FlashLlamaForSequenceClassification
+    has_flash_llama = True
+except ImportError:
+    has_flash_llama = False
 
 logger = logging.getLogger(__name__)
 
@@ -34,26 +40,27 @@ def create_model(model_name, num_labels, reinit_score_layer=True, **kwargs):
         model.config.num_labels = num_labels
         return model
 
-    try:
-        from .flash_llama import LlamaForSequenceClassification
-
-        logger.info("Using Flash Attention LlamaForSequenceClassification")
-        model = LlamaForSequenceClassification.from_pretrained(model_name, **kwargs)
-        if reinit_score_layer:
-            model = init_score_layer(model, num_labels)
-        return model
-    except ImportError as e:
-        logger.info(
-            f"Flash Attention unavailable ({e}), using standard AutoModelForSequenceClassification"
-        )
-        model = AutoModelForSequenceClassification.from_pretrained(model_name, **kwargs)
-        if reinit_score_layer:
-            model = init_score_layer(model, num_labels)
-        return model
-
-    except Exception as e:
+    model = AutoModelForSequenceClassification.from_pretrained(
+        model_name, **kwargs
+    )
+    if isinstance(model, LlamaForSequenceClassification):
+        if has_flash_llama:
+            logger.info("Using Flash Attention LlamaForSequenceClassification")
+            model = FlashLlamaForSequenceClassification.from_pretrained(model_name, **kwargs)
+            if reinit_score_layer:
+                model = init_score_layer(model, num_labels)
+            return model
+        else:
+            logger.info(
+                f"Flash Attention unavailable, using standard AutoModelForSequenceClassification"
+            )
+            model = AutoModelForSequenceClassification.from_pretrained(model_name, **kwargs)
+            if reinit_score_layer:
+                model = init_score_layer(model, num_labels)
+            return model
+    else:
         logger.warning(
-            f"Model is not LLama or otherwise failed to instantiate: {e}, using AutoModel with flash_attn"
+            f"Model is not Llama, using AutoModel with flash_attn"
         )
         model = AutoModelForSequenceClassification.from_pretrained(
             model_name, attn_implementation="flash_attention_2", **kwargs
