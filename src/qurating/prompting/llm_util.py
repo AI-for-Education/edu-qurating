@@ -6,7 +6,7 @@ import asyncio
 
 import numpy as np
 from anthropic import Anthropic, HUMAN_PROMPT, AI_PROMPT
-from fdllm import LLMMessage, get_caller, OpenAICaller
+from fdllm import LLMMessage, get_caller, OpenAICaller, GoogleGenAICaller
 from fdllm.llmtypes import LLMCaller
 from pydantic import BaseModel
 import tiktoken
@@ -54,7 +54,7 @@ async def aquery_model_logprobs(
     model: str | LLMCaller,
     system_prompt: str = None,
     retries: int = 1,
-    log_file_path: str = "openai_api_cost.jsonl",    
+    log_file_path: str = "openai_api_cost.jsonl",
 ):
     def logit_pairs_to_probs(logitsa, logitsb):
         def sigmoid(x):
@@ -67,22 +67,26 @@ async def aquery_model_logprobs(
         out[:, 0] = probs
         out[:, 1] = 1 - probs
         return out
+
     if isinstance(model, str):
         caller = get_caller(model)
     elif isinstance(model, LLMCaller):
         caller = model
-    
-    if not isinstance(caller, OpenAICaller):
-        raise NotImplementedError("Model must use OpenAI API interface for logprobs version")
-    
-    enc = tiktoken.encoding_for_model(caller.Model.Name)
+
+    if not isinstance(caller, (OpenAICaller, GoogleGenAICaller)):
+        raise NotImplementedError(
+            "Model must use OpenAI or Google GenAI API interfaces for logprobs version"
+        )
+
+    # enc = tiktoken.encoding_for_model(caller.Model.Name)
     labels = get_args(ResponseFormat.model_fields["choice"].annotation)
-    label_tokens = [enc.encode(label) for label in labels]
-    logit_bias = {
-        str(token): 100
-        for token in set.union(*(set(tokens) for tokens in label_tokens))
-    }
-    max_tokens = max(len(tokens) for tokens in label_tokens)
+    max_tokens = None
+    # label_tokens = [enc.encode(label) for label in labels]
+    # logit_bias = {
+    #     str(token): 100
+    #     for token in set.union(*(set(tokens) for tokens in label_tokens))
+    # }
+    # max_tokens = max(len(tokens) for tokens in label_tokens)
 
     messages = []
     if system_prompt is not None:
@@ -91,17 +95,20 @@ async def aquery_model_logprobs(
 
     is_ok = False
     retry_count = 0
-    
+
     while not is_ok:
         try:
             response = await caller.acall(
                 messages,
                 max_tokens=max_tokens,
-                logit_bias=logit_bias,
+                # logit_bias=logit_bias,
                 logprobs=True,
-                top_logprobs=20,
+                top_logprobs=19,
             )
-            lp = {lpt.token: lpt.logprob for lpt in response.LogProbs.content[0].top_logprobs}
+            lp = {
+                lpt.token: lpt.logprob
+                for lpt in response.LogProbs.content[0].top_logprobs
+            }
             lp = {lab: lp.get(lab, -100) for lab in labels}
             probs = logit_pairs_to_probs(*np.array(list(lp.values()))[:, None]).tolist()
             is_ok = True
@@ -121,14 +128,14 @@ async def aquery_model_logprobs(
                 print(f"API failed for {retry_count} times ({error})")
                 probs = [[-100, -100]]
     return probs
-    
+
 
 def query_model_logprobs(
     prompt: str,
     model: str | LLMCaller,
     system_prompt: str = None,
     retries: int = 1,
-    log_file_path: str = "openai_api_cost.jsonl",    
+    log_file_path: str = "openai_api_cost.jsonl",
 ):
     def logit_pairs_to_probs(logitsa, logitsb):
         def sigmoid(x):
@@ -141,22 +148,26 @@ def query_model_logprobs(
         out[:, 0] = probs
         out[:, 1] = 1 - probs
         return out
+
     if isinstance(model, str):
         caller = get_caller(model)
     elif isinstance(model, LLMCaller):
         caller = model
-    
-    if not isinstance(caller, OpenAICaller):
-        raise NotImplementedError("Model must use OpenAI API interface for logprobs version")
-    
-    enc = tiktoken.encoding_for_model(caller.Model.Name)
+
+    if not isinstance(caller, (OpenAICaller, GoogleGenAICaller)):
+        raise NotImplementedError(
+            "Model must use OpenAI or Google GenAI API interfaces for logprobs version"
+        )
+
+    # enc = tiktoken.encoding_for_model(caller.Model.Name)
     labels = get_args(ResponseFormat.model_fields["choice"].annotation)
-    label_tokens = [enc.encode(label) for label in labels]
-    logit_bias = {
-        str(token): 100
-        for token in set.union(*(set(tokens) for tokens in label_tokens))
-    }
-    max_tokens = max(len(tokens) for tokens in label_tokens)
+    max_tokens = None
+    # label_tokens = [enc.encode(label) for label in labels]
+    # logit_bias = {
+    #     str(token): 100
+    #     for token in set.union(*(set(tokens) for tokens in label_tokens))
+    # }
+    # max_tokens = max(len(tokens) for tokens in label_tokens)
 
     messages = []
     if system_prompt is not None:
@@ -165,17 +176,20 @@ def query_model_logprobs(
 
     is_ok = False
     retry_count = 0
-    
+
     while not is_ok:
         try:
             response = caller.call(
                 messages,
                 max_tokens=max_tokens,
-                logit_bias=logit_bias,
+                # logit_bias=logit_bias,
                 logprobs=True,
-                top_logprobs=20,
+                top_logprobs=19,
             )
-            lp = {lpt.token: lpt.logprob for lpt in response.LogProbs.content[0].top_logprobs}
+            lp = {
+                lpt.token: lpt.logprob
+                for lpt in response.LogProbs.content[0].top_logprobs
+            }
             lp = {lab: lp.get(lab, -100) for lab in labels}
             probs = logit_pairs_to_probs(*np.array(list(lp.values()))[:, None]).tolist()
             is_ok = True
@@ -195,8 +209,6 @@ def query_model_logprobs(
                 print(f"API failed for {retry_count} times ({error})")
                 probs = [[-100, -100]]
     return probs
-
-
 
 
 async def aquery_model(

@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 packages = ["src/qurating", "src/qurating/prompting/templates/*.txt"]
 
 [tool.uv.sources]
-fabdata-llm = { git = "https://github.com/AI-for-Education/fabdata-llm.git", rev = "v0.29.0" }
+fabdata-llm = { git = "https://github.com/AI-for-Education/fabdata-llm.git", rev = "gemini-logprobs" }
 # torch = {index = "pytorch"}
 # torchvision = {index = "pytorch"}
 
