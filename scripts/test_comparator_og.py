@@ -1,14 +1,17 @@
 # %%
 from argparse import ArgumentParser
 
+from dotenv import load_dotenv
 from fdllm import register_models
 from datasets import concatenate_datasets, Dataset
-import nest_asyncio
+# import nest_asyncio
 
 from qurating.prompting.score_pairwise import Comparator
 from qurating.constants import DATASETS_DIR, TEMPLATES_DIR, RESULTS_DIR, ROOT
 
-nest_asyncio.apply()
+# nest_asyncio.apply()
+
+load_dotenv(override=True)
 
 register_models(ROOT / "custom_models.yaml")
 
@@ -28,10 +31,11 @@ else:
     )
 
 # %%
-NUM_EXAMPLES = 100000
-OFFSET = 400000
+NUM_EXAMPLES = 200000
+OFFSET = 0
 TOKENS_MAX = 512
-MODEL = "gpt-4.1-mini"
+MODEL = "gemini-2.5-flash-vertex"
+# MODEL = "gpt-4.1-mini"
 # MODEL = "gpt-5-mini-2025-08-07-minimal"
 # MODEL = "gemini-2.5-flash-preview-05-20"
 # MODEL = "claude-sonnet-4-5-20250929"
@@ -67,8 +71,8 @@ for template_file in template_files:
     )
     if NUM_EXAMPLES > 20000:
         result_path = result_path.parent / result_path.stem
-    # if not result_path.exists():
-    if True:
+    if not result_path.exists():
+    # if True:
         arg_strs = [
             f"--template_file {template_file}",
             f"--model {MODEL}",

@@ -4,12 +4,13 @@ import numpy as np
 
 from qurating.constants import RESULTS_DIR
 
-n_samples = 20000
+n_samples = 500000
 seed = 72353534
 
 NUM_EXAMPLES = 500
 TOKENS_MAX = 512
-JUDGEMENTS_MODEL = "gpt-4.1-mini"
+# JUDGEMENTS_MODEL = "gpt-4.1-mini"
+JUDGEMENTS_MODEL = "gemini-2.5-flash-vertex"
 
 results_base = f"fwe-fortified_sampled-{n_samples}_seed-{seed}"
 template_base = "ours_v2"
