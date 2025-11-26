@@ -172,15 +172,16 @@ print(f"Labels: {labels}")
 
 model = "AI-for-Education/qurater_gemma-3-4b-pt_ds-ours_v2-200000"
 
-batch_size = 200
+annotator_batch_size = 2000
 
-annotator = ModelAnnotator(str(model), labels, batch_size)
+annotator = ModelAnnotator(str(model), labels, annotator_batch_size)
 
 tokenizer = TokenizeAndChunk(str(model), "text", 512)
 
 # %%
-ds_ = next(iter(fw_sharded_shuffled.values()))[0].take(100)
-processed_ds = ds_.map(tokenizer, batched=True, remove_columns=["text"])
+ds_batched = iter(next(iter(fw_sharded_shuffled.values()))[0].batch(batch_size=100))
+ds_batch = Dataset.from_dict(next(ds_batched))
+processed_ds = ds_batch.map(tokenizer, batched=True, remove_columns=["text"])
 column_names = list(next(iter(processed_ds)))
 results = processed_ds.map(
     annotator,
@@ -190,8 +191,8 @@ results = processed_ds.map(
 )
 
 res_list = [
-    {**ds__, **res}
-    for res, ds__ in zip(results, ds_)
+    {**ds_, **res}
+    for res, ds_ in zip(results, ds_batch)
     if res["education_level_primary_average"] > 0
 ]
 
@@ -211,23 +212,22 @@ def take_ns_filtered(
     field: str = "education_level_primary_average",
     thresh_low: float = 0.0,
     thresh_high: float = math.inf,
+    oversample_factor: float = 1.0,
 ):
-    use_ns = ns * 4
+    use_ns = int(ns * oversample_factor)
     if ns > 0:
         try:
             res_list = []
             skip = 0
             remaining_ns = ns
-            while remaining_ns > 0:
+            for batch_ds in ds.batch(batch_size=use_ns):
                 print(
                     f"Taking {use_ns}\n"
                     f"Remaining ns %: {100 * remaining_ns / ns:.02f}\n"
                     f"shard_info:\n{json.dumps(shard_info, indent=2)}\n"
                     f"Completion %: {100 * cnt[0] / tot:.02f}"
                 )
-                current_ds = ds.skip(skip).take(use_ns)
-                current_ds_list = current_ds.to_list()
-                current_ds = Dataset.from_list(current_ds_list)
+                current_ds = Dataset.from_dict(batch_ds)
                 print(
                     "Taking complete\n"
                     f"Remaining ns %: {100 * remaining_ns / ns:.02f}\n"
@@ -242,17 +242,20 @@ def take_ns_filtered(
                         annotator,
                         batched=True,
                         with_indices=True,
+                        batch_size=annotator_batch_size*4,
                         remove_columns=processed_ds.column_names,
                     )
                 res_list_new = [
                     {**res, **curr_ds_item}
-                    for res, curr_ds_item in zip(results, current_ds_list)
+                    for res, curr_ds_item in zip(results, current_ds)
                     if (res[field] > thresh_low) & (res[field] <= thresh_high)
                 ]
                 res_list.extend(res_list_new)
                 res_list = res_list[:ns]
                 skip += use_ns
                 remaining_ns = ns - len(res_list)
+                if remaining_ns == 0:
+                    break
             with count_lock:
                 cnt[0] += 1
             print(
@@ -283,6 +286,9 @@ print(len(flat_shards))
 ## use joblib with threading to sample from the shards concurrently.
 # As the main bottleneck is downloading the data to fill the buffer, threading
 # a decent speed up. Didn't observe much additional improvement with multi-processing.
+thresh_low = 1.5
+oversample_factor = 1.0
+
 njobs = int(80 / (0.8 * (buffer_size / 10000)))
 
 print("Running threaded sampling")
@@ -298,33 +304,13 @@ with ThreadPoolExecutor(max_workers=njobs) as executor:
             shard_info=shard_info,
             cnt=cnt,
             tot=len(flat_shards),
+            thresh_low=thresh_low,
+            oversample_factor=oversample_factor,
         )
         for ds, ns, shard_info in zip(flat_shards, n_samples, flat_shard_info)
     ]
     samples = [future.result() for future in as_completed(futures)]
 print(time.perf_counter() - st)
-
-# retry_info = [s[1] for s in samples if s is not None and s[0] is None]
-
-# st = time.perf_counter()
-# p = Parallel(n_jobs=50, verbose=80, backend="threading")
-# retry_samples = p(
-#     delayed(take_ns)(ds, ns, shard_info)
-#     for ds, ns, shard_info in zip(flat_shards, n_samples, flat_shard_info)
-#     if shard_info in retry_info
-# )
-# print(time.perf_counter() - st)
-
-# fixed_samples = []
-# for s in samples:
-#     if s is not None:
-#         if s[0] is None:
-#             cand = [srep for srep in retry_samples if srep[1] == s[1]]
-#             assert len(cand) == 1
-#             cand = cand[0]
-#             if cand[0] is not None:
-#                 s = cand
-#     fixed_samples.append(s)
 
 fixed_samples = samples
 
