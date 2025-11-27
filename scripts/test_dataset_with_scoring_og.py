@@ -50,6 +50,9 @@ from qurating.inference import ModelAnnotator, TokenizeAndChunk
 
 load_dotenv(override=True)
 
+N = 20000
+OVERSAMPLE_FACTOR = 4.0
+
 # %%
 ### configs are the different datasets (95, corresponding to CC dumps)
 
@@ -120,18 +123,17 @@ index_probability = np.hstack([shard_prob for shard_prob in fw_sharded_ratio.val
 
 # %%
 ### sample the number from each config / shard from a multinomial with p = index_probability
-n = 500000
 rng = np.random.default_rng(seed=multinomial_seed)
-n_samples = rng.multinomial(n=n, pvals=index_probability, size=1).ravel()
+n_samples = rng.multinomial(n=N, pvals=index_probability, size=1).ravel()
 
 print(index_probability)
-print(n_samples / n)
+print(n_samples / N)
 print(n_samples)
 print(n_samples.sum())
 
 # %%
 #### shuffle shards separately
-buffer_size = min(n * 2, 20000)
+buffer_size = min(N * 2, 20000)
 print(f"Buffer size: {buffer_size}")
 
 shard_order_rng = np.random.default_rng(seed=shard_order_seed)
@@ -209,11 +211,13 @@ def take_ns_filtered(
     shard_info: dict,
     cnt: list[int],
     tot: int,
-    field: str = "education_level_primary_average",
-    thresh_low: float = 0.0,
-    thresh_high: float = math.inf,
+    filters: dict | None = None,
     oversample_factor: float = 1.0,
 ):
+    if filters is None:
+        filters = {
+            "education_level_primary_average": (0.0, math.inf)
+        }
     use_ns = int(ns * oversample_factor)
     if ns > 0:
         try:
@@ -248,7 +252,10 @@ def take_ns_filtered(
                 res_list_new = [
                     {**res, **curr_ds_item}
                     for res, curr_ds_item in zip(results, current_ds)
-                    if (res[field] > thresh_low) & (res[field] <= thresh_high)
+                    if all(
+                        (res[field] > thresh_low) & (res[field] <= thresh_high)
+                        for field, (thresh_low, thresh_high) in filters.items()
+                    )
                 ]
                 res_list.extend(res_list_new)
                 res_list = res_list[:ns]
@@ -286,8 +293,11 @@ print(len(flat_shards))
 ## use joblib with threading to sample from the shards concurrently.
 # As the main bottleneck is downloading the data to fill the buffer, threading
 # a decent speed up. Didn't observe much additional improvement with multi-processing.
-thresh_low = 1.5
-oversample_factor = 1.0
+filters = {
+    "education_level_primary_average": (5.0, math.inf),
+    "pedagogical_structure_average": (5.0, math.inf)
+}
+assert all(filter_name.removesuffix("_average") in labels for filter_name in filters)
 
 njobs = int(80 / (0.8 * (buffer_size / 10000)))
 
@@ -304,8 +314,8 @@ with ThreadPoolExecutor(max_workers=njobs) as executor:
             shard_info=shard_info,
             cnt=cnt,
             tot=len(flat_shards),
-            thresh_low=thresh_low,
-            oversample_factor=oversample_factor,
+            filters=filters,
+            oversample_factor=OVERSAMPLE_FACTOR,
         )
         for ds, ns, shard_info in zip(flat_shards, n_samples, flat_shard_info)
     ]
@@ -328,8 +338,8 @@ sampled_ds_final_shuffled = sampled_ds.shuffle(seed=final_seed).flatten_indices(
 )
 
 if len(sampled_ds_final_shuffled) > 10000:
-    outfile = DATASETS_DIR / f"fwe-fortified_sampled-primary-{n}_seed-{main_seed}"
+    outfile = DATASETS_DIR / f"fwe-fortified_sampled-primary-5-pedagogical-5-{N}_seed-{main_seed}"
     sampled_ds_final_shuffled.save_to_disk(outfile, max_shard_size="200MB")
 else:
-    outfile = DATASETS_DIR / f"fwe-fortified_sampled-primary-{n}_seed-{main_seed}.parquet"
+    outfile = DATASETS_DIR / f"fwe-fortified_sampled-primary-5-pedagogical-5-{N}_seed-{main_seed}.parquet"
     sampled_ds_final_shuffled.to_parquet(outfile)
