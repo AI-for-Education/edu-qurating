@@ -50,8 +50,8 @@ from qurating.inference import ModelAnnotator, TokenizeAndChunk
 
 load_dotenv(override=True)
 
-N = 20000
-OVERSAMPLE_FACTOR = 4.0
+N = 500000
+OVERSAMPLE_FACTOR = 2.0
 
 # %%
 ### configs are the different datasets (95, corresponding to CC dumps)
@@ -172,7 +172,8 @@ labels = [
 ]
 print(f"Labels: {labels}")
 
-model = "AI-for-Education/qurater_gemma-3-4b-pt_ds-ours_v2-200000"
+# model = "AI-for-Education/qurater_gemma-3-4b-pt_ds-ours_v2-200000"
+model = "AI-for-Education/qurater_Qwen3-Reranker-4B-seq-cls_ds-ours_v2-200000"
 
 annotator_batch_size = 2000
 
