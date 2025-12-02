@@ -16,9 +16,10 @@ load_dotenv(override=True)
 register_models(ROOT / "custom_models.yaml")
 
 n_samples = 500000
-seed = 72353534
+# seed = 72353534
+seed = 274634520
 
-dataset_base = f"fwe-fortified_sampled-{n_samples}_seed-{seed}"
+dataset_base = f"fwe-fortified_sampled-primary-5-pedagogical-5-{n_samples}_seed-{seed}"
 
 # %%
 parquetf = DATASETS_DIR / f"{dataset_base}.parquet"
@@ -34,8 +35,8 @@ else:
 NUM_EXAMPLES = 200000
 OFFSET = 0
 TOKENS_MAX = 512
-MODEL = "gemini-2.5-flash-vertex"
-# MODEL = "gpt-4.1-mini"
+# MODEL = "gemini-2.5-flash-vertex"
+MODEL = "gpt-4.1-mini"
 # MODEL = "gpt-5-mini-2025-08-07-minimal"
 # MODEL = "gemini-2.5-flash-preview-05-20"
 # MODEL = "claude-sonnet-4-5-20250929"
@@ -47,7 +48,7 @@ use_logprobs_suffix = "_use-logprobs" if use_logprobs else ""
 
 offset_suffix = f"_offset-{OFFSET}" if OFFSET != 0 else ""
 
-use_templates_dir = TEMPLATES_DIR / "ours_v2"
+use_templates_dir = TEMPLATES_DIR / "FLN_student-facing"
 
 parser = ArgumentParser()
 Comparator.add_args(parser)
