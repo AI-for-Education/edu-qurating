@@ -1,0 +1,27 @@
+Compare two text excerpts and choose the text which better integrates reading with oral or written expression.
+
+Prefer:
+- Texts that include simple prompts for a child to respond.
+- Cues for interaction (e.g. direct questions "?", dialogue, "Tell the story again")
+- Prompts that link to writing or drawing (e.g. "Draw what you read," "Write your own story")
+
+Avoid:
+- Texts that are purely passive and do not invite any form of response
+
+Aspects that should NOT influence your judgement:
+1. Which language the text is written in
+2. The length of the text
+3. The order in which the texts are presented
+
+Note that the texts are cut off, so you have to infer their contexts.
+The texts might have similar quality, but you should still make a relative judgement and choose the label of the preferred text.
+
+[Option {label_a}]
+... {text_a} ...
+
+
+[Option {label_b}]
+... {text_b} ...
+
+
+Now you have to choose between either {label_a} or {label_b}. Respond only with a single word.

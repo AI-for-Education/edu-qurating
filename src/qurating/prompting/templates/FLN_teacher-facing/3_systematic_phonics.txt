@@ -1,0 +1,28 @@
+Compare two text excerpts and choose the text which more clearly models systematic and explicit phonics instruction (connecting letters to sounds).
+
+Prefer:
+- Clear sequencing (e.g. "first, teach /a/," "next, blend /a/ /t/").
+- Explicit instructional language (e.g. "model," "decode," "blend to read," "sound out").
+- Focus on CVC words, digraphs, or specific letter-sound correspondences.
+
+Avoid:
+- Unproven methods (e.g. "guess from the picture," "three-cueing").
+- Text that just mentions phonics without providing actionable steps
+
+Aspects that should NOT influence your judgement:
+1. Which language the text is written in
+2. The length of the text
+3. The order in which the texts are presented
+
+Note that the texts are cut off, so you have to infer their contexts.
+The texts might have similar quality, but you should still make a relative judgement and choose the label of the preferred text.
+
+[Option {label_a}]
+... {text_a} ...
+
+
+[Option {label_b}]
+... {text_b} ...
+
+
+Now you have to choose between either {label_a} or {label_b}. Respond only with a single word.

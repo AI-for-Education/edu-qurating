@@ -1,0 +1,29 @@
+Compare two text excerpts and choose the text which demonstrates clearer overall pedagogical structure and responsiveness.
+
+Prefer:
+- Explicit Scaffolding: Includes clear cues for modelling or gradual release of responsibility (e.g. "I do, we do, you do," "model," "guided practice," "your turn").
+- Formative Checking:Includes prompts to check understanding or provide corrective feedback (e.g. "check," "correct," "listen for," "try again").
+- Multilingual Alignment: Shows awareness of language context (e.g. "mother tongue," "local language," "translate," "in your language").
+- Clear Structure: Uses temporal markers to show a clear lesson sequence (e.g. "first," "next," "review," "today’s lesson").
+
+Avoid:
+- Text that only contains content (e.g. a story or a list of phonics words) without any instructional procedures.
+- Vague, un-scaffolded instructions (e.g. "Now teach the children to read.")
+
+Aspects that should NOT influence your judgement:
+1. Which language the text is written in
+2. The length of the text
+3. The order in which the texts are presented
+
+Note that the texts are cut off, so you have to infer their contexts.
+The texts might have similar quality, but you should still make a relative judgement and choose the label of the preferred text.
+
+[Option {label_a}]
+... {text_a} ...
+
+
+[Option {label_b}]
+... {text_b} ...
+
+
+Now you have to choose between either {label_a} or {label_b}. Respond only with a single word.

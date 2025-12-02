@@ -1,0 +1,28 @@
+Compare two text excerpts and choose the text which provides clearer guidance on how to integrate writing and spelling to support reading.
+
+Prefer:
+- Explicit instructions for encoding (spelling) activities.
+- Specific tasks like "dictation," "segment to spell," "handwriting," or "write a sentence".
+- Guidance that clearly links spelling patterns back to phonics lessons
+
+Avoid:
+- Simple "draw a picture" tasks with no writing component.
+- Copying text from a board without an explicit instructional purpose (e.g. handwriting, spelling).
+
+Aspects that should NOT influence your judgement:
+1. Which language the text is written in
+2. The length of the text
+3. The order in which the texts are presented
+
+Note that the texts are cut off, so you have to infer their contexts.
+The texts might have similar quality, but you should still make a relative judgement and choose the label of the preferred text.
+
+[Option {label_a}]
+... {text_a} ...
+
+
+[Option {label_b}]
+... {text_b} ...
+
+
+Now you have to choose between either {label_a} or {label_b}. Respond only with a single word.
