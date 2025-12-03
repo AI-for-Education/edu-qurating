@@ -172,8 +172,8 @@ labels = [
 ]
 print(f"Labels: {labels}")
 
-# model = "AI-for-Education/qurater_gemma-3-4b-pt_ds-ours_v2-200000"
-model = "AI-for-Education/qurater_Qwen3-Reranker-4B-seq-cls_ds-ours_v2-200000"
+model = "AI-for-Education/qurater_gemma-3-4b-pt_ds-ours_v2-200000"
+# model = "AI-for-Education/qurater_Qwen3-Reranker-4B-seq-cls_ds-ours_v2-200000"
 
 annotator_batch_size = 2000
 
@@ -295,7 +295,6 @@ print(len(flat_shards))
 # As the main bottleneck is downloading the data to fill the buffer, threading
 # a decent speed up. Didn't observe much additional improvement with multi-processing.
 filters = {
-    "education_level_primary_average": (5.0, math.inf),
     "pedagogical_structure_average": (5.0, math.inf)
 }
 assert all(filter_name.removesuffix("_average") in labels for filter_name in filters)
@@ -339,8 +338,8 @@ sampled_ds_final_shuffled = sampled_ds.shuffle(seed=final_seed).flatten_indices(
 )
 
 if len(sampled_ds_final_shuffled) > 10000:
-    outfile = DATASETS_DIR / f"fwe-fortified_sampled-primary-5-pedagogical-5-{N}_seed-{main_seed}"
+    outfile = DATASETS_DIR / f"fwe-fortified_sampled-pedagogical-5-{N}_seed-{main_seed}"
     sampled_ds_final_shuffled.save_to_disk(outfile, max_shard_size="200MB")
 else:
-    outfile = DATASETS_DIR / f"fwe-fortified_sampled-primary-5-pedagogical-5-{N}_seed-{main_seed}.parquet"
+    outfile = DATASETS_DIR / f"fwe-fortified_sampled-pedagogical-5-{N}_seed-{main_seed}.parquet"
     sampled_ds_final_shuffled.to_parquet(outfile)
