@@ -19,7 +19,7 @@ n_samples = 500000
 # seed = 72353534
 seed = 274634520
 
-dataset_base = f"fwe-fortified_sampled-primary-5-pedagogical-5-{n_samples}_seed-{seed}"
+dataset_base = f"fwe-fortified_sampled-pedagogical-5-{n_samples}_seed-{seed}"
 
 # %%
 parquetf = DATASETS_DIR / f"{dataset_base}.parquet"
@@ -48,7 +48,7 @@ use_logprobs_suffix = "_use-logprobs" if use_logprobs else ""
 
 offset_suffix = f"_offset-{OFFSET}" if OFFSET != 0 else ""
 
-use_templates_dir = TEMPLATES_DIR / "FLN_student-facing"
+use_templates_dir = TEMPLATES_DIR / "FLN_teacher-facing"
 
 parser = ArgumentParser()
 Comparator.add_args(parser)
