@@ -2,7 +2,7 @@
 
 # > Default arguments - can be overriden by environment variables:
 # architecture to train, must be compatible with the Llama architecture
-model=${MODEL:-google/gemma-3-4b-pt}
+model=${MODEL:-tomaarsen/Qwen3-Reranker-4B-seq-cls}
 # total batch size across all devices with gradient accumulation
 bsz=${BSZ:-512}
 # number of sequences per device
@@ -24,15 +24,16 @@ labeltemp=${LABELTEMP:-1.0}
 # which labels to predict
 label_index=${LABELINDEX:-"all"}
 
-dataset_templates_base=${DS_TEMPL_BASE:-ours_v2}
+dataset_prefix=${DS_PREFIX:-fwe-fortified_sampled-pedagogical-5}
+dataset_templates_base=${DS_TEMPL_BASE:-FLN_teacher-facing}
 dataset_nsamples=${DS_NSAMPLES:-500000}
 dataset_nexamples=${DS_NEXAMPLES:-200000}
 dataset_tokens_max=${DS_TOKENSMAX:-512}
-dataset_seed=${DS_SEED:-72353534}
+dataset_seed=${DS_SEED:-274634520}
 dataset_model=${DS_MODEL:-gpt-4.1-mini}
 dataset_logprobs=${DS_USELOGPROBS:-logprobs}
 
-run_name="qurater_$(basename $model)_bsz${bsz}_lr${lr}_epochs${epochs}_warmup${warmup}_conf${confidence}_labeltemp${labeltemp}${suffix}_ds-${dataset_templates_base}-${dataset_nsamples}-${dataset_nexamples}-${dataset_tokens_max}-${dataset_seed}-${dataset_model}-${dataset_logprobs}"
+run_name="qurater_$(basename $model)_bsz${bsz}_lr${lr}_epochs${epochs}_warmup${warmup}_conf${confidence}_labeltemp${labeltemp}${suffix}_ds-${dataset_prefix}-${dataset_templates_base}-${dataset_nsamples}-${dataset_nexamples}-${dataset_tokens_max}-${dataset_seed}-${dataset_model}-${dataset_logprobs}"
 out_dir="checkpoints-preferences/$run_name"
 mkdir -p $out_dir
 
@@ -103,6 +104,7 @@ base_arguments=(
     # --do_eval
     # --do_train
     --model-name $model
+    --dataset-prefix $dataset_prefix
     --dataset-samples $dataset_nsamples
     --dataset-seed $dataset_seed
     --dataset-templates $dataset_templates_base

@@ -122,6 +122,12 @@ def parse_args():
         help="Model name or path for the base model",
     )
     parser.add_argument(
+        "--dataset-prefix",
+        type=str,
+        default="fwe-fortified_sampled",
+        help="Prefix of the source dataset",
+    )
+    parser.add_argument(
         "--dataset-samples",
         type=int,
         default=20000,
@@ -225,13 +231,14 @@ def parse_args():
 def load_dataset_and_setup_args(args):
     """Load dataset based on command line arguments."""
     # Dataset parameters from args
+    prefix = args.dataset_prefix
     n_samples = args.dataset_samples
     seed = args.dataset_seed
     model_name = args.judgement_model
     num_examples = args.num_examples
     use_logprobs_suffix = "_use-logprobs" if args.logprobs == "logprobs" else ""
 
-    dataset_base = f"fwe-fortified_sampled-{n_samples}_seed-{seed}"
+    dataset_base = f"{prefix}-{n_samples}_seed-{seed}"
     dataset_file = (
         RESULTS_DIR
         / f"tokens_max_{args.dataset_max_tokens}"
