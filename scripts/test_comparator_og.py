@@ -32,8 +32,8 @@ else:
     )
 
 # %%
-NUM_EXAMPLES = 200000
-OFFSET = 0
+NUM_EXAMPLES = 100000
+OFFSET = 400000
 TOKENS_MAX = 512
 # MODEL = "gemini-2.5-flash-vertex"
 MODEL = "gpt-4.1-mini"
