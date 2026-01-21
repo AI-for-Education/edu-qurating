@@ -9,6 +9,9 @@ FIGURES_DIR = ROOT / "figures"
 VALIDATION_DATA_DIR = DATA_DIR / "validation_dataset"
 VALIDATION_DATA_CONFIG_DIR = VALIDATION_DATA_DIR / "config"
 VALIDATION_DATA_DATASETS_DIR = VALIDATION_DATA_DIR / "datasets"
+VALIDATION_DATA_RESULTS_DIR = VALIDATION_DATA_DIR / "results"
+
+VALIDATION_DATA_RESULTS_DIR.mkdir(exist_ok=True, parents=True)
 
 FIGURES_DIR.mkdir(exist_ok=True, parents=True)
 
