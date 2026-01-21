@@ -4,6 +4,7 @@ from pathlib import Path
 import json
 import multiprocessing
 
+from tqdm import tqdm
 from dotenv import load_dotenv
 import pandas as pd
 import pandas_gbq as pgb
@@ -82,8 +83,13 @@ def normalize_strings(level, mapping, split=False):
         out_level = []
         for level_ in level.split(","):
             level_ = level_.strip()
-            out_level.append(float(mapping.get(level_, np.nan)))
-        return out_level
+            val = str(mapping.get(level_, ""))
+            if val and val not in out_level:
+                out_level.append(val)
+        if out_level:
+            return ", ".join(out_level)
+        else:
+            return None
     else:
         if level in mapping:
             return mapping[level]
@@ -92,18 +98,16 @@ def normalize_strings(level, mapping, split=False):
 
 
 df["education_level_normalized"] = df["education_level"].apply(
-    normalize_strings, args=(level_map_dict, False)
+    normalize_strings, args=(level_map_dict, True)
 )
 df["education_level_isced"] = df["education_level"].apply(
-    normalize_strings, args=(level_map_dict_isced, False)
+    normalize_strings, args=(level_map_dict_isced, True)
 )
 df["material_type_normalized"] = df["material_type"].apply(
-    normalize_strings, args=(mat_type_map_dict, False)
+    normalize_strings, args=(mat_type_map_dict, True)
 )
 
 usedf = df.dropna(subset=["education_level_normalized"])
-
-print(len(usedf))
 
 usedf.iloc[np.random.permutation(len(usedf))][
     [
@@ -114,6 +118,10 @@ usedf.iloc[np.random.permutation(len(usedf))][
         "material_type_normalized",
     ]
 ].head(25)
+
+usedf = usedf.drop_duplicates(subset="resource_url")
+
+print(len(usedf))
 
 # %%
 """
@@ -130,6 +138,20 @@ for key, val in (
     .items()
 ):
     print(f"\n\n{'*'*50}\n{key}\n\n{json.dumps(val, indent=2)}\n{'#'*50}\n")
+
+# %%
+iszip = usedf["resource_url"].str.endswith(".zip")
+test_resource = usedf.loc[iszip].iloc[0]
+
+pages_text, pages_images, sz = process_resource(
+    test_resource["resource_url"],
+    scheme="az",
+    dl=True,
+    client_kwargs={
+        "account_url": "https://fabcontentcurationextsa.blob.core.windows.net",
+        "credential": os.getenv("AZURE_STORAGE_KEY"),
+    },
+)
 
 # %%
 """
@@ -159,8 +181,9 @@ rng = np.random.default_rng()
 samp_i = rng.permutation(len(usedf))[:500]
 samp_urls = urls.iloc[samp_i]
 
+n_jobs = NJOBS if BACKEND != "loky" else max(ncpus - 4, 1)
 p = Parallel(
-    n_jobs=NJOBS if BACKEND != "loky" else max(ncpus - 2, 1),
+    n_jobs=n_jobs,
     backend=BACKEND,
     verbose=60,
 )
@@ -173,51 +196,62 @@ res = p(
         verbose=0,
         client_kwargs=client_kwargs,
         extract_images=False,
+        i=i,
     )
-    for url in urls
+    for i, url in enumerate(urls)
 )
 
 # %%
 pages_text, pages_images, sz = list(zip(*res))
 
-full_text = ["\n".join(pt) for pt in pages_text]
+full_text = [
+    "\n".join(pt) if isinstance(pt, list) else {k: "\n".join(v) for k, v in pt.items()}
+    for pt in pages_text
+]
+full_text_list_of_dicts = []
+for res_url, ft in zip(usedf["resource_url"], full_text):
+    if isinstance(ft, str):
+        ft_dict = {
+            "resource_url": res_url,
+            "subfile": None,
+            "sub_id": 0,
+            "full_text": ft,
+        }
+        full_text_list_of_dicts.append(ft_dict)
+    else:
+        for i, (subfile, ft_) in enumerate(ft.items()):
+            ft_dict = {
+                "resource_url": res_url,
+                "subfile": subfile,
+                "sub_id": i,
+                "full_text": ft_,
+            }
+            full_text_list_of_dicts.append(ft_dict)
 
-usedf["full_text"] = full_text
-usedf["nchars"] = usedf["full_text"].str.len()
+full_text_df = pd.DataFrame(full_text_list_of_dicts)
 
-usedf_hastext = usedf.loc[usedf["nchars"] >= 400].copy()
+usedf_withtext = usedf.merge(how="left", right=full_text_df, on="resource_url")
+usedf_withtext["id"] = usedf_withtext.apply(
+    lambda row: f"{row['id']}_{row['sub_id']}", axis=1
+)
+
+usedf_withtext["nchars"] = usedf_withtext["full_text"].str.len()
+
+usedf_hastext = usedf_withtext.loc[usedf_withtext["nchars"] >= 400].copy()
 
 full_text = usedf_hastext["full_text"].to_list()
 
 print(len(full_text))
 
 # %%
-# res = []
-# with ThreadPoolExecutor(max_workers=NJOBS) as executor:
-#     futures = []
-#     for i, url in enumerate(tqdm(urls)):
-#         future = executor.submit(
-#             process_resource,
-#             url,
-#             scheme="az",
-#             dl=DL,
-#             verbose=0,
-#             client_kwargs=client_kwargs,
-#             i=i,
-#         )
-#         # res.append(future.result())
-#         futures.append(future)
-#     for future in tqdm(as_completed(futures), total=len(futures)):
-#         res.append(future.result())
+batch_sz = 1000
+all_result = []
+for batch_start in tqdm(range(0, len(full_text), batch_sz)):
+    batch_ft = full_text[batch_start : batch_start + batch_sz]
+    batch_result = detector.compute_language_confidence_values_in_parallel(batch_ft)
+    all_result.extend(batch_result)
 
-# %%
-# md_text = pymupdf4llm.to_markdown(
-#     local_path, write_images=True, image_path=Path("temp_images")
-# )
-# Path("output.md").write_bytes(md_text.encode())
-
-# %%
-all_result = detector.compute_language_confidence_values_in_parallel(full_text)
+# all_result = detector.compute_language_confidence_values_in_parallel(full_text)
 
 result_lang = [result[0].language.name for result in all_result]
 
@@ -237,25 +271,25 @@ json_not_english = (
 print((usedf_hastext.loc[json_english, "lingua_language"] == "ENGLISH").mean())
 print((usedf_hastext.loc[json_not_english, "lingua_language"] == "ENGLISH").mean())
 
-print(
-    usedf_hastext.loc[json_english]
-    .groupby("lingua_language")
-    .agg({"lingua_language": len})
-)
-print(
-    usedf_hastext.loc[json_not_english]
-    .groupby("lingua_language")
-    .agg({"lingua_language": len})
-)
+# print(
+#     usedf_hastext.loc[json_english]
+#     .groupby("lingua_language")
+#     .agg({"lingua_language": len})
+# )
+# print(
+#     usedf_hastext.loc[json_not_english]
+#     .groupby("lingua_language")
+#     .agg({"lingua_language": len})
+# )
 
 # %%
 lingua_english = usedf_hastext["lingua_language"] == "ENGLISH"
 
 print(usedf_hastext.loc[lingua_english].groupby("language").agg({"language": len}))
-# %%
-usedf_hastext.loc[lingua_english].query("language == 'Tok Pisin'")[
-    "full_text"
-].to_list()
+# # %%
+# usedf_hastext.loc[lingua_english].query("language == 'Tok Pisin'")[
+#     "full_text"
+# ].to_list()
 
 
 # %%

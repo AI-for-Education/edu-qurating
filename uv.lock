@@ -540,6 +540,12 @@ azure = [
     { name = "azure-storage-blob" },
     { name = "azure-storage-file-datalake" },
 ]
+gs = [
+    { name = "google-cloud-storage" },
+]
+s3 = [
+    { name = "boto3" },
+]
 
 [[package]]
 name = "colorama"
@@ -980,7 +986,7 @@ source = { editable = "." }
 dependencies = [
     { name = "accelerate" },
     { name = "anthropic" },
-    { name = "cloudpathlib", extra = ["azure"] },
+    { name = "cloudpathlib", extra = ["azure", "gs", "s3"] },
     { name = "datasets" },
     { name = "fabdata-llm" },
     { name = "huggingface-hub", extra = ["cli"] },
@@ -1020,7 +1026,7 @@ linux-gpu = [
 requires-dist = [
     { name = "accelerate", specifier = ">=1.10.1" },
     { name = "anthropic", specifier = ">=0.49.0" },
-    { name = "cloudpathlib", extras = ["azure"], specifier = ">=0.23.0" },
+    { name = "cloudpathlib", extras = ["s3", "gs", "azure"], specifier = ">=0.23.0" },
     { name = "datasets", specifier = ">=4.1.1" },
     { name = "fabdata-llm", git = "https://github.com/AI-for-Education/fabdata-llm.git?rev=gemini-logprobs" },
     { name = "huggingface-hub", extras = ["cli"], specifier = ">=0.35.1" },
@@ -1293,6 +1299,23 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/a6/03/ef0bc99d0e0faf4fdbe67ac445e18cdaa74824fd93cd069e7bb6548cb52d/google_cloud_core-2.5.0.tar.gz", hash = "sha256:7c1b7ef5c92311717bd05301aa1a91ffbc565673d3b0b4163a52d8413a186963", size = 36027 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/89/20/bfa472e327c8edee00f04beecc80baeddd2ab33ee0e86fd7654da49d45e9/google_cloud_core-2.5.0-py3-none-any.whl", hash = "sha256:67d977b41ae6c7211ee830c7912e41003ea8194bff15ae7d72fd6f51e57acabc", size = 29469 },
+]
+
+[[package]]
+name = "google-cloud-storage"
+version = "3.8.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "google-api-core" },
+    { name = "google-auth" },
+    { name = "google-cloud-core" },
+    { name = "google-crc32c" },
+    { name = "google-resumable-media" },
+    { name = "requests" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/a8/90/4398cecc2704cb066bc7dee6111a5c93c59bcd6fb751f0541315655774a8/google_cloud_storage-3.8.0.tar.gz", hash = "sha256:cc67952dce84ebc9d44970e24647a58260630b7b64d72360cedaf422d6727f28", size = 17273792 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/11/db/326279870d349fb9592263343dca4ad76088c17c88ba97b0f64c1088276c/google_cloud_storage-3.8.0-py3-none-any.whl", hash = "sha256:78cfeae7cac2ca9441d0d0271c2eb4ebfa21aa4c6944dd0ccac0389e81d955a7", size = 312430 },
 ]
 
 [[package]]
