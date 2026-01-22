@@ -34,8 +34,8 @@ print("Loading pairwise dataset...")
 dataset_file = (
     RESULTS_DIR
     / "tokens_max_512"
-    / "fwe-fortified_sampled-500000_seed-72353534"
-    / "ours_v2"
+    / "fwe-fortified_sampled-pedagogical-5-500000_seed-274634520"
+    / "FLN_teacher-facing"
     / "combined_gpt-4.1-mini_nexamples-200000_use-logprobs"
 )
 parquetf = Path(dataset_file).with_suffix(".parquet")
@@ -53,18 +53,18 @@ print(f"Labels: {labels}")
 # model = "AI-for-Education/qurater_gemma-3-4b-pt_ds-ours_v2-200000"
 
 # model = "AI-for-Education/qurater_Qwen3-Reranker-4B-seq-cls_ds-ours_v2-200000"
-model = str(
-    ROOT
-    / "checkpoints-preferences"
-    / "qurater_Qwen3-Reranker-4B-seq-cls_bsz512_lr5e-5_epochs2_warmup0.1_conf0.5_labeltemp1.0_ds-fwe-fortified_sampled-primary-5-pedagogical-5-FLN_student-facing-500000-200000-512-274634520-gpt-4.1-mini-logprobs"
-    / "checkpoint-340"
-)
 # model = str(
 #     ROOT
 #     / "checkpoints-preferences"
-#     / "checkpoints-preferences/qurater_Qwen3-Reranker-4B-seq-cls_bsz512_lr5e-5_epochs2_warmup0.1_conf0.5_labeltemp1.0_ds-fwe-fortified_sampled-pedagogical-5-FLN_teacher-facing-500000-200000-512-274634520-gpt-4.1-mini-logprobs"
-#     / "checkpoint-312"
+#     / "qurater_Qwen3-Reranker-4B-seq-cls_bsz512_lr5e-5_epochs2_warmup0.1_conf0.5_labeltemp1.0_ds-fwe-fortified_sampled-primary-5-pedagogical-5-FLN_student-facing-500000-200000-512-274634520-gpt-4.1-mini-logprobs"
+#     / "checkpoint-340"
 # )
+model = str(
+    ROOT
+    / "checkpoints-preferences"
+    / "qurater_Qwen3-Reranker-4B-seq-cls_bsz512_lr5e-5_epochs2_warmup0.1_conf0.5_labeltemp1.0_ds-fwe-fortified_sampled-pedagogical-5-FLN_teacher-facing-500000-200000-512-274634520-gpt-4.1-mini-logprobs"
+    / "checkpoint-312"
+)
 
 annotator_batch_size = 2000
 
@@ -111,3 +111,5 @@ outfile = (
 
 outfile.parent.mkdir(exist_ok=True, parents=True)
 results.to_parquet(outfile)
+
+# %%
