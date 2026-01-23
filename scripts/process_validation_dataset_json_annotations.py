@@ -242,6 +242,8 @@ full_text_utf8 = [
     for ft in full_text
 ]
 
+usedf_hastext["full_text"] = full_text_utf8
+
 # %%
 batch_sz = 1000
 all_result = []
@@ -294,5 +296,5 @@ print(usedf_hastext.loc[lingua_english].groupby("language").agg({"language": len
 # %%
 usedf_lingua_english = usedf_hastext.loc[lingua_english].reset_index()
 usedf_lingua_english.to_parquet(
-    VALIDATION_DATA_DATASETS_DIR / "bottom_up_sample_english.parquet"
+    VALIDATION_DATA_DATASETS_DIR / "bottom_up_sample_english_markdown.parquet"
 )
