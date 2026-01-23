@@ -237,11 +237,16 @@ full_text = usedf_hastext["full_text"].to_list()
 
 print(len(full_text))
 
+full_text_utf8 = [
+    ft.encode("utf-8", errors="replace").decode("utf-8")
+    for ft in full_text
+]
+
 # %%
 batch_sz = 1000
 all_result = []
-for batch_start in tqdm(range(0, len(full_text), batch_sz)):
-    batch_ft = full_text[batch_start : batch_start + batch_sz]
+for batch_start in tqdm(range(0, len(full_text_utf8), batch_sz)):
+    batch_ft = full_text_utf8[batch_start : batch_start + batch_sz]
     batch_result = detector.compute_language_confidence_values_in_parallel(batch_ft)
     all_result.extend(batch_result)
 
