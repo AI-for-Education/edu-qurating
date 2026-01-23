@@ -21,6 +21,22 @@ load_dotenv(override=True)
 # load annotator model
 print("Loading pairwise dataset...")
 
+# dataset_file = (
+#     RESULTS_DIR
+#     / "tokens_max_512"
+#     / "fwe-fortified_sampled-500000_seed-72353534"
+#     / "ours_v2"
+#     / "combined_gpt-4.1-mini_nexamples-200000_use-logprobs"
+# )
+
+# dataset_file = (
+#     RESULTS_DIR
+#     / "tokens_max_512"
+#     / "fwe-fortified_sampled-primary-5-pedagogical-5-500000_seed-274634520"
+#     / "FLN_student-facing"
+#     / "combined_gpt-4.1-mini_nexamples-200000_use-logprobs"
+# )
+
 dataset_file = (
     RESULTS_DIR
     / "tokens_max_512"
@@ -28,6 +44,7 @@ dataset_file = (
     / "FLN_teacher-facing"
     / "combined_gpt-4.1-mini_nexamples-200000_use-logprobs"
 )
+
 parquetf = Path(dataset_file).with_suffix(".parquet")
 if parquetf.exists():
     ds = Dataset.from_parquet(str(dataset_file))
@@ -65,7 +82,7 @@ tokenizer = TokenizeAndChunk(str(model), "text", 512)
 # %%
 ### load texts to score
 texts_dataset = Dataset.from_parquet(
-    str(VALIDATION_DATA_DATASETS_DIR / "bottom_up_sample_english.parquet")
+    str(VALIDATION_DATA_DATASETS_DIR / "bottom_up_sample_english_markdown.parquet")
 ).rename_column("full_text", "text")
 
 texts_dataset.add_column("record_id", texts_dataset["index"])
@@ -76,7 +93,7 @@ def remove_single_newline(row):
     return row
 
 
-texts_dataset = texts_dataset.map(remove_single_newline)
+# texts_dataset = texts_dataset.map(remove_single_newline, load_from_cache_file=False)
 
 processed_ds = texts_dataset.map(
     tokenizer,
@@ -99,7 +116,9 @@ results = processed_ds.map(
 model_string = [sub for sub in model.split("/") if sub.startswith("qurater_")][0]
 
 outfile = (
-    VALIDATION_DATA_RESULTS_DIR / model_string / "bottom_up_sample_english.parquet"
+    VALIDATION_DATA_RESULTS_DIR
+    / model_string
+    / "bottom_up_sample_english_markdown.parquet"
 )
 
 outfile.parent.mkdir(exist_ok=True, parents=True)
