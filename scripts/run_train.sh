@@ -2,11 +2,11 @@
 
 # > Default arguments - can be overriden by environment variables:
 # architecture to train, must be compatible with the Llama architecture
-model=${MODEL:-tomaarsen/Qwen3-Reranker-4B-seq-cls}
+model=${MODEL:-google/gemma-3-4b-pt}
 # total batch size across all devices with gradient accumulation
 bsz=${BSZ:-512}
 # number of sequences per device
-seq=${SEQ:-16}
+seq=${SEQ:-8}
 # peak learning rate
 lr=${LR:-5e-5}
 # number of epochs
@@ -24,8 +24,8 @@ labeltemp=${LABELTEMP:-1.0}
 # which labels to predict
 label_index=${LABELINDEX:-"all"}
 
-dataset_prefix=${DS_PREFIX:-fwe-fortified_sampled-pedagogical-5}
-dataset_templates_base=${DS_TEMPL_BASE:-FLN_teacher-facing}
+dataset_prefix=${DS_PREFIX:-fwe-fortified_sampled-primary-5-pedagogical-5}
+dataset_templates_base=${DS_TEMPL_BASE:-FLN_student-facing}
 dataset_nsamples=${DS_NSAMPLES:-500000}
 dataset_nexamples=${DS_NEXAMPLES:-200000}
 dataset_tokens_max=${DS_TOKENSMAX:-512}
