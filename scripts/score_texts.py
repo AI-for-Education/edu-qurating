@@ -1,23 +1,13 @@
 """ """
 
 # %%
-import time
-from functools import reduce
 from pathlib import Path
-import threading
-from concurrent.futures import ThreadPoolExecutor, as_completed
-import math
-import json
 import re
 
-from datasets import load_dataset, get_dataset_config_names, Dataset, IterableDataset
-import numpy as np
-from tqdm import tqdm
+from datasets import Dataset
 from dotenv import load_dotenv
-import pandas as pd
 
 from qurating.constants import (
-    DATASETS_DIR,
     RESULTS_DIR,
     VALIDATION_DATA_DATASETS_DIR,
     VALIDATION_DATA_RESULTS_DIR,
@@ -89,7 +79,11 @@ def remove_single_newline(row):
 texts_dataset = texts_dataset.map(remove_single_newline)
 
 processed_ds = texts_dataset.map(
-    tokenizer, batched=True, remove_columns=["text"], batch_size=4000
+    tokenizer,
+    batched=True,
+    remove_columns=["text"],
+    batch_size=4000,
+    load_from_cache_file=False,
 )
 
 results = processed_ds.map(
@@ -98,15 +92,14 @@ results = processed_ds.map(
     with_indices=True,
     batch_size=annotator_batch_size,
     remove_columns=[col for col in processed_ds.column_names if col != "record_id"],
+    load_from_cache_file=False,
 )
 
 # %%
 model_string = [sub for sub in model.split("/") if sub.startswith("qurater_")][0]
 
 outfile = (
-    VALIDATION_DATA_RESULTS_DIR
-    / model_string
-    / "bottom_up_sample_english.parquet"
+    VALIDATION_DATA_RESULTS_DIR / model_string / "bottom_up_sample_english.parquet"
 )
 
 outfile.parent.mkdir(exist_ok=True, parents=True)

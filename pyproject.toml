@@ -27,7 +27,7 @@ dependencies = [
     "torch>=2.8.0",
     "torchvision>=0.23.0",
     "transformers>=4.56.2",
-    "numpy>=2.1.2",
+    "numpy>=2.4.1",
     "accelerate>=1.10.1",
     "tqdm>=4.66.5",
     "datasets>=4.1.1",
@@ -37,11 +37,14 @@ dependencies = [
     "seaborn>=0.13.2",
     "pandas-gbq>=0.33.0",
     "cloudpathlib[s3,gs,azure]>=0.23.0",
-    "pymupdf>=1.26.7",
+    "pymupdf==1.26.6",
     "pymupdf4llm>=0.2.9",
     "langdetect>=1.0.9",
     "lingua-language-detector>=2.1.1",
     "openpyxl>=3.1.5",
+    "scipy>=1.17.0",
+    "py-readability-metrics>=1.4.5",
+    "pymupdf-layout>=1.26.6",
 ]
 
 

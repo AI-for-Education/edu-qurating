@@ -6,6 +6,7 @@ import zipfile
 from cloudpathlib import AzureBlobClient, GSClient, CloudPath
 from cloudpathlib.client import Client
 import pymupdf
+import pymupdf4llm
 
 
 def download_resource(
@@ -43,6 +44,7 @@ def process_resource(
     dl=True,
     client_kwargs=None,
     extract_images=False,
+    markdown=False,
     i=0,
 ):
     if client_kwargs is None:
@@ -92,19 +94,26 @@ def process_resource(
                             if subfiletype in ["pdf", "docx", "txt"]:
                                 filebytes = f.read(file)
                                 with pymupdf.open(None, stream=filebytes, filetype=subfiletype) as pdf:
-                                    pages_text[file] = [p.get_text() for p in pdf.pages()]
+                                    if markdown:
+                                        pages_text[file] = [pymupdf4llm.to_markdown(pdf, embed_images=extract_images)]
+                                    else:
+                                        pages_text[file] = [p.get_text() for p in pdf.pages()]
                     pages_images = []
                 #############
                 elif filetype in ["pdf", "docx", "txt"]:
-                    with pymupdf.open(local_path) as f:
-                        pages_text = [p.get_text() for p in f.pages()]
-                        if extract_images:
-                            pages_images = [
-                                [b for b in p.get_text("dict")["blocks"] if b["type"] == 1]
-                                for p in f.pages()
-                            ]
-                        else:
+                    with pymupdf.open(local_path) as pdf:
+                        if markdown:
+                            pages_text = [pymupdf4llm.to_markdown(pdf, embed_images=extract_images)]
                             pages_images = []
+                        else:
+                            pages_text = [p.get_text() for p in pdf.pages()]
+                            if extract_images:
+                                pages_images = [
+                                    [b for b in p.get_text("dict")["blocks"] if b["type"] == 1]
+                                    for p in pdf.pages()
+                                ]
+                            else:
+                                pages_images = []
             except Exception as e:
                 print(e)
                 # pdf_bytes = b""

@@ -23,15 +23,6 @@ HERE = Path(__file__).resolve().parent
 DL = True
 NJOBS = 300
 
-ED_LEVEL_NUMERICAL = {
-    "Preschool": 0,
-    "Lower primary": 2,
-    "Upper primary": 5,
-    "Lower secondary": 8,
-    "Upper secondary": 11,
-    "Tertiary": 14,
-}
-
 BAD_RESOURCE_URLS = [
     "https://fabcontentcurationextsa.blob.core.windows.net/geeky-content/bloomlibrary-org/f3mfFT2C4A/pdf-document/e0b6b4e0b794e0b6bbe0b78fe0b6ab20e0b6b8e0b78fe0b6bbe0b78ae0b69ce0b6ba.pdf"
 ]
@@ -151,6 +142,7 @@ pages_text, pages_images, sz = process_resource(
         "account_url": "https://fabcontentcurationextsa.blob.core.windows.net",
         "credential": os.getenv("AZURE_STORAGE_KEY"),
     },
+    markdown=True,
 )
 
 # %%
@@ -161,6 +153,7 @@ ncpus = multiprocessing.cpu_count()
 print(ncpus)
 
 BACKEND = "loky"
+MARKDOWN = True
 
 azure_storage_key = os.getenv("AZURE_STORAGE_KEY")
 
@@ -181,7 +174,7 @@ rng = np.random.default_rng()
 samp_i = rng.permutation(len(usedf))[:500]
 samp_urls = urls.iloc[samp_i]
 
-n_jobs = NJOBS if BACKEND != "loky" else max(ncpus - 4, 1)
+n_jobs = NJOBS if BACKEND == "threading" else max(ncpus - 10, 1)
 p = Parallel(
     n_jobs=n_jobs,
     backend=BACKEND,
@@ -197,6 +190,7 @@ res = p(
         client_kwargs=client_kwargs,
         extract_images=False,
         i=i,
+        markdown=MARKDOWN,
     )
     for i, url in enumerate(urls)
 )
