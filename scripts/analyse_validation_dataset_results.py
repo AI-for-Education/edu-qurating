@@ -11,7 +11,11 @@ from readability.exceptions import ReadabilityException
 import nltk
 from joblib import Parallel, delayed
 
-from qurating.constants import VALIDATION_DATA_RESULTS_DIR, VALIDATION_DATA_DATASETS_DIR
+from qurating.constants import (
+    VALIDATION_DATA_RESULTS_DIR,
+    VALIDATION_DATA_DATASETS_DIR,
+    FIGURES_DIR,
+)
 
 nltk.download("punkt_tab")
 
@@ -70,12 +74,15 @@ def calc_fk(text):
 
 
 # %%
-dataset_name = "bottom_up_sample_english.parquet"
+dataset_name = "bottom_up_sample_english_markdown.parquet"
 
 dataset_file = VALIDATION_DATA_DATASETS_DIR / dataset_name
 results_files = VALIDATION_DATA_RESULTS_DIR.rglob(f"*{dataset_name}")
 
 dataset_df = pd.read_parquet(dataset_file)
+dataset_df["material_type_normalized"] = dataset_df["material_type_normalized"].replace(
+    "nan", pd.NA
+)
 
 results_dfs = {}
 for rf in results_files:
@@ -90,14 +97,18 @@ for rf in results_files:
             break
 
 # %%
+"""
+Rating distributions split by metadata education level
+"""
+
 for mod_type in model_types:
 
     result_df = results_dfs[mod_type]
 
-    ed_level_meta = dataset_df["education_level_normalized"].apply(map_education_level)
-    not_multi_filt = ~np.array(ed_level_meta["education_level_numerical_multi"])
-    not_nan_filt = ~np.array(ed_level_meta["education_level_numerical"].isna())
-    x = np.array(ed_level_meta["education_level_numerical"])[
+    mat_type_meta = dataset_df["education_level_normalized"].apply(map_education_level)
+    not_multi_filt = ~np.array(mat_type_meta["education_level_numerical_multi"])
+    not_nan_filt = ~np.array(mat_type_meta["education_level_numerical"].isna())
+    x = np.array(mat_type_meta["education_level_numerical"])[
         not_multi_filt & not_nan_filt
     ].astype(float)
 
@@ -127,7 +138,59 @@ for mod_type in model_types:
             ax.set_yticks([], [])
 
     fig.savefig(
-        f"bottom_up_dataset_comparison_{mod_type}.png", dpi=300, bbox_inches="tight"
+        FIGURES_DIR / f"bottom_up_dataset_comparison_education-level_{mod_type}.png",
+        dpi=300,
+        bbox_inches="tight",
+    )
+
+# %%
+"""
+Rating distributions split by metadata material type
+"""
+
+for mod_type in model_types:
+
+    result_df = results_dfs[mod_type]
+
+    mat_type_meta = dataset_df["material_type_normalized"]
+    not_nan_filt = ~np.array(mat_type_meta.isna())
+    x = np.array(mat_type_meta)[not_nan_filt]
+    print(len(x))
+    unqvals, unq_counts = np.unique(x, return_counts=True)
+    unqvals_sample = unqvals[unq_counts >= 10]
+    sample_filt = np.isin(x, unqvals_sample)
+    x = x[sample_filt]
+    print(len(x))
+
+    level_vars = [col for col in result_df.columns if col.endswith("_average")]
+
+    fig, axs = plt.subplots(nrows=1, ncols=len(level_vars), figsize=(18, 5))
+    if not isinstance(axs, np.ndarray):
+        axs = [axs]
+
+    for i, model_var in enumerate(level_vars):
+        ax: plt.Axes = axs[i]
+        ed_level_model = result_df[model_var]
+        y = np.array(ed_level_model)[not_nan_filt][sample_filt].astype(float)
+
+        # sns.boxplot(x=x, y=y, hue=x, whis=[5, 95], width=0.6, ax=axs[i])
+        sns.violinplot(x=y, y=x, hue=x, ax=ax, orient="h", legend=False)
+        sns.stripplot(
+            x=y, y=x, ax=ax, size=2, jitter=0.08, orient="h", color=[0, 0, 0, 0.1]
+        )
+        # sns.swarmplot(x=y, y=x, ax=axs[i], size=1, orient="h", color=[0, 0, 0, 1])
+        ax.set_title(" ".join(model_var.split("_")[:-1]))
+        ax.set_xlabel("Model Score")
+        if i == 0:
+            ax.set_ylabel("Material type (Scrape metadata)")
+            # ax.set_yticklabels(np.unique(x))
+        else:
+            ax.set_yticks([], [])
+
+    fig.savefig(
+        FIGURES_DIR / f"bottom_up_dataset_comparison_material-type_{mod_type}.png",
+        dpi=300,
+        bbox_inches="tight",
     )
 
 # %%
@@ -150,7 +213,7 @@ ax.set_ybound([np.nanmin(y_fk), 100])
 
 # %%
 # lowest scoring tertiaries
-tertiary_filt = ed_level_meta["education_level_numerical"] == 14
+tertiary_filt = mat_type_meta["education_level_numerical"] == 14
 
 lowest_50_index = ed_level_model.loc[tertiary_filt].sort_values()[:50].index
 lowest_50_df = dataset_df.loc[lowest_50_index]
