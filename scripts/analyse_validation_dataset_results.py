@@ -28,11 +28,14 @@ ED_LEVEL_NUMERICAL = {
     "Tertiary": 14,
 }
 
-model_types = {
+MODEL_TYPES = {
     "general_educational": "ours_v2",
     "FLN_student-facing": None,
     "FLN_teacher-facing": None,
 }
+
+# BASE_MODEL = "Qwen3-Reranker-4B-seq-cls"
+BASE_MODEL = "gemma-3-4b-pt"
 
 
 def map_education_level(level_string):
@@ -87,10 +90,10 @@ dataset_df["material_type_normalized"] = dataset_df["material_type_normalized"].
 results_dfs = {}
 for rf in results_files:
     long_name = rf.parent.name
-    for mod_type, short_name in model_types.items():
+    for mod_type, short_name in MODEL_TYPES.items():
         if short_name is None:
             short_name = mod_type
-        if short_name in long_name:
+        if short_name in long_name and BASE_MODEL in long_name:
             if mod_type in results_dfs:
                 raise ValueError(f"More than one model found for {mod_type}")
             results_dfs[mod_type] = pd.read_parquet(rf).set_index("index")
@@ -101,7 +104,7 @@ for rf in results_files:
 Rating distributions split by metadata education level
 """
 
-for mod_type in model_types:
+for mod_type in MODEL_TYPES:
 
     result_df = results_dfs[mod_type]
 
@@ -148,7 +151,7 @@ for mod_type in model_types:
 Rating distributions split by metadata material type
 """
 
-for mod_type in model_types:
+for mod_type in MODEL_TYPES:
 
     result_df = results_dfs[mod_type]
 

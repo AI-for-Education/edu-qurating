@@ -16,15 +16,18 @@ from qurating.constants import (
 RESULTS_MAPPING = {
     "general_educational": {
         "folder": "ours_v2",
-        "ratings_folder": "qurater_Qwen3-Reranker-4B-seq-cls_ds-ours_v2-200000",
+        # "ratings_folder": "qurater_Qwen3-Reranker-4B-seq-cls_ds-ours_v2-200000",
+        "ratings_folder": "qurater_gemma-3-4b-pt_ds-ours_v2-200000",
     },
     "FLN_student-facing": {
         "folder": None,
-        "ratings_folder": "qurater_Qwen3-Reranker-4B-seq-cls_bsz512_lr5e-5_epochs2_warmup0.1_conf0.5_labeltemp1.0_ds-fwe-fortified_sampled-primary-5-pedagogical-5-FLN_student-facing-500000-200000-512-274634520-gpt-4.1-mini-logprobs",
+        # "ratings_folder": "qurater_Qwen3-Reranker-4B-seq-cls_bsz512_lr5e-5_epochs2_warmup0.1_conf0.5_labeltemp1.0_ds-fwe-fortified_sampled-primary-5-pedagogical-5-FLN_student-facing-500000-200000-512-274634520-gpt-4.1-mini-logprobs",
+        "ratings_folder": "qurater_gemma-3-4b-pt_bsz512_lr5e-5_epochs2_warmup0.1_conf0.5_labeltemp1.0_ds-fwe-fortified_sampled-primary-5-pedagogical-5-FLN_student-facing-500000-200000-512-274634520-gpt-4.1-mini-logprobs",
     },
     "FLN_teacher-facing": {
         "folder": None,
-        "ratings_folder": "qurater_Qwen3-Reranker-4B-seq-cls_bsz512_lr5e-5_epochs2_warmup0.1_conf0.5_labeltemp1.0_ds-fwe-fortified_sampled-pedagogical-5-FLN_teacher-facing-500000-200000-512-274634520-gpt-4.1-mini-logprobs",
+        # "ratings_folder": "qurater_Qwen3-Reranker-4B-seq-cls_bsz512_lr5e-5_epochs2_warmup0.1_conf0.5_labeltemp1.0_ds-fwe-fortified_sampled-pedagogical-5-FLN_teacher-facing-500000-200000-512-274634520-gpt-4.1-mini-logprobs",
+        "ratings_folder": "qurater_gemma-3-4b-pt_bsz512_lr5e-5_epochs2_warmup0.1_conf0.5_labeltemp1.0_ds-fwe-fortified_sampled-pedagogical-5-FLN_teacher-facing-500000-200000-512-274634520-gpt-4.1-mini-logprobs",
     },
 }
 
@@ -42,7 +45,8 @@ def remove_single_newline(row):
 
 
 # %%
-tokenizer_model = "AI-for-Education/qurater_Qwen3-Reranker-4B-seq-cls_ds-ours_v2-200000"
+# tokenizer_model = "AI-for-Education/qurater_Qwen3-Reranker-4B-seq-cls_ds-ours_v2-200000"
+tokenizer_model = "AI-for-Education/qurater_gemma-3-4b-pt_ds-ours_v2-200000"
 tokenizer = TokenizeAndChunk(str(tokenizer_model), "text", 512)
 
 dataset_name = "bottom_up_sample_english_markdown.parquet"
@@ -57,11 +61,14 @@ processed_ds = texts_dataset.map(
     tokenizer,
     batched=True,
     remove_columns=["text"],
-    batch_size=500,
+    batch_size=100,
     load_from_cache_file=False,
 )
 
 lang_filt = np.array(processed_ds["language"]) == "English"
+ed_level_filt = np.isin(
+    processed_ds["education_level_normalized"], ["Lower primary", "Upper primary"]
+)
 
 # %%
 results_data_file = (
@@ -74,7 +81,7 @@ pedagogical_scores = results_dataset["pedagogical_structure_chunks"]
 
 nsamples_per_col = 60
 min_chunks = 3
-alpha = 10
+alpha = 25
 
 rng = np.random.default_rng(seed=823533744)
 
@@ -104,8 +111,18 @@ for model_type, res_info in RESULTS_MAPPING.items():
     }
     sample_idxs = {
         col: [
-            np.flatnonzero((results_dataset[col] < prct[0]) & (nchunks >= min_chunks) & lang_filt),
-            np.flatnonzero((results_dataset[col] > prct[1]) & (nchunks >= min_chunks) & lang_filt),
+            np.flatnonzero(
+                (results_dataset[col] < prct[0])
+                & (nchunks >= min_chunks)
+                & lang_filt
+                & ed_level_filt
+            ),
+            np.flatnonzero(
+                (results_dataset[col] > prct[1])
+                & (nchunks >= min_chunks)
+                & lang_filt
+                & ed_level_filt
+            ),
         ]
         for col, prct in percentiles.items()
     }
