@@ -52,7 +52,7 @@ tokenizer = TokenizeAndChunk(str(tokenizer_model), "text", 512)
 dataset_name = "bottom_up_sample_english_markdown.parquet"
 dataset_file = VALIDATION_DATA_DATASETS_DIR / dataset_name
 texts_dataset = Dataset.from_parquet(
-    str(dataset_file),
+    str(dataset_file), keep_in_memory=True
 ).rename_column("full_text", "text")
 
 # texts_dataset = texts_dataset.map(remove_single_newline, load_from_cache_file=False)
@@ -67,8 +67,15 @@ processed_ds = texts_dataset.map(
 
 lang_filt = np.array(processed_ds["language"]) == "English"
 ed_level_filt = np.isin(
-    processed_ds["education_level_normalized"], ["Lower primary", "Upper primary"]
+    processed_ds["education_level_normalized"],
+    ["Lower primary", "Upper primary", "Lower secondary", "Upper secondary"],
 )
+
+mat_type = pd.Series(processed_ds["material_type_normalized"])
+mat_type_filt = ~np.isin(mat_type, ["Storybook"])
+
+website_filt = ~np.isin(pd.Series(processed_ds["website"]), ["earlylearningresourcenetwork.org"])
+
 
 # %%
 results_data_file = (
@@ -79,11 +86,11 @@ results_data_file = (
 results_dataset = Dataset.from_parquet(str(results_data_file))
 pedagogical_scores = results_dataset["pedagogical_structure_chunks"]
 
-nsamples_per_col = 60
-min_chunks = 3
-alpha = 25
+nsamples_per_col = 20
+min_chunks = 5
+alpha = 5
 
-rng = np.random.default_rng(seed=823533744)
+rng = np.random.default_rng(seed=4238346)
 
 text_pairs = []
 for model_type, res_info in RESULTS_MAPPING.items():
@@ -101,28 +108,24 @@ for model_type, res_info in RESULTS_MAPPING.items():
         [len(chunk_list) for chunk_list in results_dataset["chunk_lengths"]]
     )
 
+    # combo_filt = (nchunks >= min_chunks) & lang_filt & ed_level_filt & mat_type_filt
+    combo_filt = (nchunks >= min_chunks) & lang_filt & mat_type_filt & ed_level_filt# & website_filt
+
     ## document scores percentiles
     doc_score_cols = [
         col for col in results_dataset.column_names if col.endswith("_average")
     ]
+
     percentiles = {
-        col: np.percentile(results_dataset[col], [alpha, 100 - alpha])
+        col: np.percentile(
+            np.array(results_dataset[col])[combo_filt], [alpha, 100 - alpha]
+        )
         for col in doc_score_cols
     }
     sample_idxs = {
         col: [
-            np.flatnonzero(
-                (results_dataset[col] < prct[0])
-                & (nchunks >= min_chunks)
-                & lang_filt
-                & ed_level_filt
-            ),
-            np.flatnonzero(
-                (results_dataset[col] > prct[1])
-                & (nchunks >= min_chunks)
-                & lang_filt
-                & ed_level_filt
-            ),
+            np.flatnonzero((results_dataset[col] < prct[0]) & combo_filt),
+            np.flatnonzero((results_dataset[col] > prct[1]) & combo_filt),
         ]
         for col, prct in percentiles.items()
     }
@@ -160,8 +163,8 @@ for model_type, res_info in RESULTS_MAPPING.items():
                 second = s2
             else:
                 order.append("B")
-                first = s2
-                second = s1
+                first = s1
+                second = s2
             chunk_lists.append(processed_ds["chunks_token_ids"][first])
             chunk_lists.append(processed_ds["chunks_token_ids"][second])
             doc_idx_list.append(first)
@@ -172,16 +175,23 @@ for model_type, res_info in RESULTS_MAPPING.items():
             doc_score = results_dataset[col][doc_idx]
             # print(doc_score)
             # print(np.mean(chunk_scores))
-            if len(chunk_scores) > 2:
-                use_chunk_scores = chunk_scores[1:-1]
-                offset = 1
+            if len(chunk_scores) > 4:
+                offset = 2
+                use_chunk_scores = chunk_scores[offset:-offset]
+                use_chunk_scores_pedagogical = chunk_scores_pedagogical[offset:-offset]
             else:
                 use_chunk_scores = chunk_scores
+                use_chunk_scores_pedagogical = chunk_scores_pedagogical
                 offset = 0
-            # chunk_list_idx = (
-            #     np.argmin(np.abs(np.array(use_chunk_scores) - doc_score)) + offset
-            # )
-            chunkidx = np.argmax(chunk_scores_pedagogical).item()
+            # joint minimize distance to doc score and maximize pedagogical structure (weighted)
+            chunkidx = (
+                np.argmin(
+                    (np.abs(np.array(use_chunk_scores) - doc_score))
+                    - 0.0 * np.array(use_chunk_scores_pedagogical)
+                )
+                + offset
+            )
+            # chunkidx = np.argmax(chunk_scores_pedagogical).item()
             token_chunk = chunk_list[chunkidx]
             text_chunk = tokenizer.tokenizer.decode(token_chunk)
             text_chunks.append(text_chunk)
@@ -257,3 +267,5 @@ example_data_df = pd.DataFrame(text_pairs)
 example_data_df.to_csv(
     DATA_DIR / "full_pairwise_data_markdown.csv", encoding="utf_8_sig"
 )
+
+# %%
