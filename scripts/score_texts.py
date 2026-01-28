@@ -21,13 +21,13 @@ load_dotenv(override=True)
 # load annotator model
 print("Loading pairwise dataset...")
 
-dataset_file = (
-    RESULTS_DIR
-    / "tokens_max_512"
-    / "fwe-fortified_sampled-500000_seed-72353534"
-    / "ours_v2"
-    / "combined_gpt-4.1-mini_nexamples-200000_use-logprobs"
-)
+# dataset_file = (
+#     RESULTS_DIR
+#     / "tokens_max_512"
+#     / "fwe-fortified_sampled-500000_seed-72353534"
+#     / "ours_v2"
+#     / "combined_gpt-4.1-mini_nexamples-200000_use-logprobs"
+# )
 
 # dataset_file = (
 #     RESULTS_DIR
@@ -37,13 +37,13 @@ dataset_file = (
 #     / "combined_gpt-4.1-mini_nexamples-200000_use-logprobs"
 # )
 
-# dataset_file = (
-#     RESULTS_DIR
-#     / "tokens_max_512"
-#     / "fwe-fortified_sampled-pedagogical-5-500000_seed-274634520"
-#     / "FLN_teacher-facing"
-#     / "combined_gpt-4.1-mini_nexamples-200000_use-logprobs"
-# )
+dataset_file = (
+    RESULTS_DIR
+    / "tokens_max_512"
+    / "fwe-fortified_sampled-pedagogical-5-500000_seed-274634520"
+    / "FLN_teacher-facing"
+    / "combined_gpt-4.1-mini_nexamples-200000_use-logprobs"
+)
 
 parquetf = Path(dataset_file).with_suffix(".parquet")
 if parquetf.exists():
@@ -57,19 +57,19 @@ labels = [
 ]
 print(f"Labels: {labels}")
 
-model = "AI-for-Education/qurater_gemma-3-4b-pt_ds-ours_v2-200000"
+# model = "AI-for-Education/qurater_gemma-3-4b-pt_ds-ours_v2-200000"
 # model = str(
 #     ROOT
 #     / "checkpoints-preferences"
 #     / "qurater_gemma-3-4b-pt_bsz512_lr5e-5_epochs2_warmup0.1_conf0.5_labeltemp1.0_ds-fwe-fortified_sampled-primary-5-pedagogical-5-FLN_student-facing-500000-200000-512-274634520-gpt-4.1-mini-logprobs"
 #     / "checkpoint-340"
 # )
-# model = str(
-#     ROOT
-#     / "checkpoints-preferences"
-#     / "qurater_gemma-3-4b-pt_bsz512_lr5e-5_epochs2_warmup0.1_conf0.5_labeltemp1.0_ds-fwe-fortified_sampled-pedagogical-5-FLN_teacher-facing-500000-200000-512-274634520-gpt-4.1-mini-logprobs"
-#     / "checkpoint-312"
-# )
+model = str(
+    ROOT
+    / "checkpoints-preferences"
+    / "qurater_gemma-3-4b-pt_bsz512_lr5e-5_epochs2_warmup0.1_conf0.5_labeltemp1.0_ds-fwe-fortified_sampled-pedagogical-5-FLN_teacher-facing-500000-200000-512-274634520-gpt-4.1-mini-logprobs"
+    / "checkpoint-312"
+)
 
 # model = "AI-for-Education/qurater_Qwen3-Reranker-4B-seq-cls_ds-ours_v2-200000"
 # model = str(
@@ -85,7 +85,7 @@ model = "AI-for-Education/qurater_gemma-3-4b-pt_ds-ours_v2-200000"
 #     / "checkpoint-312"
 # )
 
-annotator_batch_size = 2000
+annotator_batch_size = 500
 
 annotator = ModelAnnotator(str(model), labels, annotator_batch_size)
 
@@ -96,15 +96,9 @@ tokenizer = TokenizeAndChunk(str(model), "text", 512)
 # texts_dataset_name = str(
 #     VALIDATION_DATA_DATASETS_DIR / "bottom_up_sample_english_markdown.parquet"
 # )
-# texts_dataset_subset = None
-# texts_dataset_streaming = False
-# texts_dataset_split = None
-# texts_dataset_nrows = None
-texts_dataset_name = "HuggingFaceTB/smollm-corpus"
-texts_dataset_subset = "cosmopedia-v2"
-texts_dataset_streaming = True
-texts_dataset_split = "train"
-texts_dataset_nrows = 15000
+texts_dataset_name = str(
+    VALIDATION_DATA_DATASETS_DIR / "cosmopedia-v2_sample_50000.parquet"
+)
 
 parquetf = Path(texts_dataset_name).with_suffix(".parquet")
 if parquetf.exists():
@@ -112,20 +106,9 @@ if parquetf.exists():
 elif Path(texts_dataset_name).is_dir():
     texts_dataset = Dataset.load_from_disk(texts_dataset_name)
 else:
-    try:
-        texts_dataset = load_dataset(
-            texts_dataset_name,
-            name=texts_dataset_subset,
-            streaming=texts_dataset_streaming,
-            split=texts_dataset_split,
-        )
-    except Exception:
-        raise ValueError(f"{dataset_file} doesn't exist or is not a valid format")
+    raise ValueError(f"{texts_dataset_name} doesn't exist or is not a valid format")
 if "full_text" in texts_dataset.column_names:
     texts_dataset = texts_dataset.rename_column("full_text", "text")
-
-if texts_dataset_nrows is not None:
-    texts_dataset = Dataset.from_list(list(texts_dataset.take(texts_dataset_nrows)))
 
 # %%
 
@@ -162,7 +145,7 @@ model_string = [sub for sub in model.split("/") if sub.startswith("qurater_")][0
 outfile = (
     VALIDATION_DATA_RESULTS_DIR
     / model_string
-    / f"cosmopedia-v2_sample_{texts_dataset_nrows}.parquet"
+    / texts_dataset_name.split("/")[-1]
 )
 
 outfile.parent.mkdir(exist_ok=True, parents=True)

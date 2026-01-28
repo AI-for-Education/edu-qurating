@@ -20,12 +20,28 @@ from qurating.constants import (
 nltk.download("punkt_tab")
 
 ED_LEVEL_NUMERICAL = {
-    "Preschool": 0,
-    "Lower primary": 2,
-    "Upper primary": 5,
-    "Lower secondary": 8,
-    "Upper secondary": 11,
-    "Tertiary": 14,
+    "bottom_up_sample_english_markdown.parquet": {
+        "Preschool": 0,
+        "Lower primary": 2,
+        "Upper primary": 4,
+        "Lower secondary": 6,
+        "Upper secondary": 8,
+        "Tertiary": 10,
+    },
+    "cosmopedia-v2_sample_15000.parquet": {
+        "young_children": 0,
+        "children": 2,
+        "middle_school_students": 5,
+        "high_school_studnets": 8,
+        "college_students": 11,
+        "college_studnets": 11,
+        "researchers": 13,
+    },
+}
+
+ED_LEVEL_COLUMN = {
+    "bottom_up_sample_english_markdown.parquet": "education_level_normalized",
+    "cosmopedia-v2_sample_15000.parquet": "audience",
 }
 
 MODEL_TYPES = {
@@ -38,7 +54,7 @@ MODEL_TYPES = {
 BASE_MODEL = "gemma-3-4b-pt"
 
 
-def map_education_level(level_string):
+def map_education_level(level_string, dataset_name):
     level_multi = False
     if not isinstance(level_string, str):
         level_num = level_num_max = level_num_min = np.nan
@@ -46,7 +62,9 @@ def map_education_level(level_string):
         level_num = []
         for level_component in level_string.split(","):
             level_component = level_component.strip()
-            level_num.append(ED_LEVEL_NUMERICAL.get(level_component, np.nan))
+            level_num.append(
+                ED_LEVEL_NUMERICAL[dataset_name].get(level_component, np.nan)
+            )
         if len(level_num) == 1:
             level_num = level_num[0]
             level_num_max = level_num
@@ -77,15 +95,18 @@ def calc_fk(text):
 
 
 # %%
-dataset_name = "bottom_up_sample_english_markdown.parquet"
+# dataset_name = "bottom_up_sample_english_markdown.parquet"
+dataset_name = "cosmopedia-v2_sample_15000.parquet"
 
 dataset_file = VALIDATION_DATA_DATASETS_DIR / dataset_name
 results_files = VALIDATION_DATA_RESULTS_DIR.rglob(f"*{dataset_name}")
 
 dataset_df = pd.read_parquet(dataset_file)
-dataset_df["material_type_normalized"] = dataset_df["material_type_normalized"].replace(
-    "nan", pd.NA
-)
+
+if "material_type_normalized" in dataset_df.columns:
+    dataset_df["material_type_normalized"] = dataset_df[
+        "material_type_normalized"
+    ].replace("nan", pd.NA)
 
 results_dfs = {}
 for rf in results_files:
@@ -108,10 +129,12 @@ for mod_type in MODEL_TYPES:
 
     result_df = results_dfs[mod_type]
 
-    mat_type_meta = dataset_df["education_level_normalized"].apply(map_education_level)
-    not_multi_filt = ~np.array(mat_type_meta["education_level_numerical_multi"])
-    not_nan_filt = ~np.array(mat_type_meta["education_level_numerical"].isna())
-    x = np.array(mat_type_meta["education_level_numerical"])[
+    ed_level_meta = dataset_df[ED_LEVEL_COLUMN[dataset_name]].apply(
+        map_education_level, dataset_name=dataset_name
+    )
+    not_multi_filt = ~np.array(ed_level_meta["education_level_numerical_multi"])
+    not_nan_filt = ~np.array(ed_level_meta["education_level_numerical"].isna())
+    x = np.array(ed_level_meta["education_level_numerical"])[
         not_multi_filt & not_nan_filt
     ].astype(float)
 
@@ -136,7 +159,7 @@ for mod_type in MODEL_TYPES:
         ax.set_xlabel("Model Score")
         if i == 0:
             ax.set_ylabel("Education Level (Scrape metadata)")
-            ax.set_yticklabels(ED_LEVEL_NUMERICAL)
+            ax.set_yticklabels(ED_LEVEL_NUMERICAL[dataset_name])
         else:
             ax.set_yticks([], [])
 
