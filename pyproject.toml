@@ -45,6 +45,7 @@ dependencies = [
     "scipy>=1.17.0",
     "py-readability-metrics>=1.4.5",
     "pymupdf-layout>=1.26.6",
+    "python-digitalocean>=1.17.0",
 ]
 
 
