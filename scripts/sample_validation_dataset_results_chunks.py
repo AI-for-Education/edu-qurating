@@ -1,5 +1,6 @@
 # %%
 import re
+from shutil import make_archive, rmtree
 
 import numpy as np
 from datasets import Dataset
@@ -50,7 +51,7 @@ tokenizer_model = "AI-for-Education/qurater_gemma-3-4b-pt_ds-ours_v2-200000"
 tokenizer = TokenizeAndChunk(str(tokenizer_model), "text", 512)
 
 # dataset_name = "bottom_up_sample_english_markdown.parquet"
-dataset_name = "cosmopedia-v2_sample_15000.parquet"
+dataset_name = "cosmopedia-v2_sample_50000.parquet"
 dataset_file = VALIDATION_DATA_DATASETS_DIR / dataset_name
 texts_dataset = Dataset.from_parquet(str(dataset_file), keep_in_memory=True)
 if "full_text" in texts_dataset.column_names:
@@ -70,10 +71,7 @@ processed_ds = texts_dataset.map(
 )
 
 # lang_filt = np.array(processed_ds["language"]) == "English"
-# ed_level_filt = np.isin(
-#     processed_ds["education_level_normalized"],
-#     ["Lower primary", "Upper primary", "Lower secondary", "Upper secondary"],
-# )
+ed_level_filt = ~np.isin(processed_ds["audience"], ["alien"])
 
 # mat_type = pd.Series(processed_ds["material_type_normalized"])
 # mat_type_filt = np.isin(mat_type, ["Reading"])
@@ -92,14 +90,14 @@ results_data_file = (
 results_dataset = Dataset.from_parquet(str(results_data_file))
 pedagogical_scores = results_dataset["pedagogical_structure_chunks"]
 
-nsamples_per_col = 12
+nsamples_per_col = 60
 n_chunk_min = 0
 n_chunk_max = 5
 n_chunk_steps = 5
-min_chunks = 5
-alpha = 5
+# min_chunks = 5
+alpha = 20
 
-rng = np.random.default_rng(seed=4238346)
+rng = np.random.default_rng(seed=4238346524)
 
 text_pairs = []
 for model_type, res_info in RESULTS_MAPPING.items():
@@ -122,7 +120,7 @@ for model_type, res_info in RESULTS_MAPPING.items():
     ):
         n_chunk_filt = (nchunks > chunk_bin - n_chunk_steps) & (nchunks <= chunk_bin)
         print(n_chunk_filt.sum().item())
-        combo_filt = n_chunk_filt  # & lang_filt # & mat_type_filt
+        combo_filt = n_chunk_filt & ed_level_filt  # & lang_filt # & mat_type_filt
         # combo_filt = (nchunks >= min_chunks) & lang_filt & ed_level_filt & mat_type_filt
         # combo_filt = (nchunks >= min_chunks) & lang_filt & mat_type_filt & ed_level_filt# & website_filt
 
@@ -173,13 +171,13 @@ for model_type, res_info in RESULTS_MAPPING.items():
             doc_idx_list = []
             for s1, s2 in zip(*paired_samples):
                 if rng.uniform() >= 0.5:
-                    order.append("A")
+                    order.extend(["A"] * 2)
                     first = s1
                     second = s2
                 else:
-                    order.append("B")
-                    first = s1
-                    second = s2
+                    order.extend(["B"] * 2)
+                    first = s2
+                    second = s1
                 chunk_lists.append(processed_ds["chunks_token_ids"][first])
                 chunk_lists.append(processed_ds["chunks_token_ids"][second])
                 doc_idx_list.append(first)
@@ -209,7 +207,7 @@ for model_type, res_info in RESULTS_MAPPING.items():
                 # # chunkidx = np.argmax(chunk_scores_pedagogical).item()
                 # token_chunk = chunk_list[chunkidx]
                 # text_chunk = tokenizer.tokenizer.decode(token_chunk)
-                chunkidx = 0
+                chunkidx = np.nan
                 print(doc_idx)
                 text_chunk = texts_dataset["text"][doc_idx]
                 text_chunks.append(text_chunk)
@@ -228,6 +226,7 @@ for model_type, res_info in RESULTS_MAPPING.items():
                         "option_b_chunk": indices[i + 1]["chunk"],
                         "judgement_dimension": f"{model_type}/{dimensions[i]}",
                         "judgement_text": template_texts[i],
+                        # "order": order[i],
                     }
                     for i in range(0, len(text_chunks), 2)
                 ]
@@ -283,15 +282,46 @@ for model_type, res_info in RESULTS_MAPPING.items():
 # %%
 example_data_df = pd.DataFrame(text_pairs)
 judge_dims = example_data_df["judgement_dimension"].unique().tolist()
-
 example_data_df = pd.concat(
     [df for _, df in example_data_df.groupby("judgement_dimension", sort=False)],
     axis=0,
     ignore_index=True,
 )
 
+raters = ["A", "D"]
+n_samples_per_col_per_rater = (nsamples_per_col // 2) // len(raters)
+assert n_samples_per_col_per_rater == (nsamples_per_col // 2) / len(raters)
+for rateri, rater in enumerate(raters):
+    start_idx = n_samples_per_col_per_rater * rateri
+    out_dir = DATA_DIR / "full_pairwise_data_cosmopedia-v2-50000_set1" / rater
+    out_dir.mkdir(exist_ok=True, parents=True)
+
+    ndims_per_split = 3
+    out_df_list = []
+    csv_batch = 0
+    for _, df in example_data_df.groupby("judgement_dimension", sort=False):
+        out_df_list.append(
+            df.copy().iloc[start_idx : start_idx + n_samples_per_col_per_rater]
+        )
+        if len(out_df_list) == ndims_per_split:
+            out_df = pd.concat(out_df_list, axis=0, ignore_index=True)
+            out_df.to_csv(out_dir / f"batch_{csv_batch :02d}.csv")
+            csv_batch += 1
+            out_df_list = []
+    if out_df_list:
+        out_df = pd.concat(out_df_list, axis=0, ignore_index=True)
+        out_df.to_csv(out_dir / f"batch_{csv_batch :02d}.csv")
+    ########################################################
+    make_archive(
+        out_dir.parents[1] / f"{out_dir.parent.name}_{out_dir.name}",
+        "zip",
+        str(out_dir),
+    )
+    rmtree(str(out_dir.parent))
+
 example_data_df.to_csv(
-    DATA_DIR / "full_pairwise_data_markdown.csv", encoding="utf_8_sig"
+    DATA_DIR / "full_pairwise_data_cosmopedia-v2-50000_set1.csv", encoding="utf_8_sig"
 )
+
 
 # %%

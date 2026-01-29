@@ -28,7 +28,7 @@ ED_LEVEL_NUMERICAL = {
         "Upper secondary": 8,
         "Tertiary": 10,
     },
-    "cosmopedia-v2_sample_15000.parquet": {
+    "cosmopedia-v2_sample_50000.parquet": {
         "young_children": 0,
         "children": 2,
         "middle_school_students": 5,
@@ -41,7 +41,7 @@ ED_LEVEL_NUMERICAL = {
 
 ED_LEVEL_COLUMN = {
     "bottom_up_sample_english_markdown.parquet": "education_level_normalized",
-    "cosmopedia-v2_sample_15000.parquet": "audience",
+    "cosmopedia-v2_sample_50000.parquet": "audience",
 }
 
 MODEL_TYPES = {
@@ -96,7 +96,7 @@ def calc_fk(text):
 
 # %%
 # dataset_name = "bottom_up_sample_english_markdown.parquet"
-dataset_name = "cosmopedia-v2_sample_15000.parquet"
+dataset_name = "cosmopedia-v2_sample_50000.parquet"
 
 dataset_file = VALIDATION_DATA_DATASETS_DIR / dataset_name
 results_files = VALIDATION_DATA_RESULTS_DIR.rglob(f"*{dataset_name}")
