@@ -66,8 +66,8 @@ linux-gpu = [
 # [tool.uv.extra-build-dependencies]
 # flash-attn = ["torch"]
 
-# [tool.uv]
-# no-build-isolation-package = ['flash-attn']
+[tool.uv]
+no-build-isolation-package = ['flash-attn']
 
 # [[tool.uv.index]]
 # name = "pytorch"
