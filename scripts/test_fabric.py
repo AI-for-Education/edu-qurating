@@ -44,9 +44,11 @@ def run_node(host, start_partition, end_partition, n_partitions):
                     f"cd {REPO_PATH}",
                     f"git switch {REV}",
                     "git pull",
+                    f"{UV_PATH} sync --group linux-gpu",
                     f"{UV_PATH} run dvc remote modify --local azure account_key {dvc_key}",
                     f"{UV_PATH} run dvc pull",
-                    f"{UV_PATH} sync --group linux-gpu",
+                    ## run again to improve chance of getting everything
+                    f"{UV_PATH} run dvc pull",
                     f"{UV_PATH} run python {SCRIPT_PATH} {start_partition} {end_partition} --n-partitions {n_partitions}",
                 ]
             )
