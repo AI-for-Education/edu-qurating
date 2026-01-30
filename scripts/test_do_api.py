@@ -54,11 +54,15 @@ if created:
         if dp.status is not None:
             print(f"{dp.status}")
             if dp.status == "active":
-                print(f"Success, destroying droplet in {sleep_time}s")
-                time.sleep(sleep_time)
-                dp.destroy()
+                print("Success")
+                print(f"id: {dp.id}")
+                print(f"size: {dp.size_slug}")
+                print(f"ip: {dp.ip_address}")
                 break
         else:
             print("Not ready")
             print(f"Checking again in {sleep_time}s")
             time.sleep(sleep_time)
+
+# %%
+dp.destroy()
