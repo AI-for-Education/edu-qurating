@@ -12,15 +12,17 @@ load_dotenv(override=True)
 user = "ogarrod"
 hosts = os.getenv("FABRIC_TEST_HOSTS")
 key_filename = os.getenv("FABRIC_TEST_HOST_KEY")
+dvc_key = os.getenv("FABRIC_TEST_DVC_KEY")
 assert hosts is not None
 assert key_filename is not None
 
 hosts = hosts.split(";")
 
-PROJECT_PATH = "~/projects/fab-qurating"
+PROJECT_PATH = "~/projects"
+REPO_PATH = f"{PROJECT_PATH}/fab-qurating"
 SCRIPT_PATH = "./scripts/score_fineweb-edu-fortified/score_fineweb-edu-fortified.py"
 UV_PATH = "~/.local/bin/uv"
-REV = "do-adapt-oli"
+REV = "do-adapt-oli-run-minimal-data"
 
 
 def run_node(host, start_partition, end_partition, n_partitions):
@@ -34,18 +36,15 @@ def run_node(host, start_partition, end_partition, n_partitions):
             " && ".join(
                 [
                     "echo $0",
+                    'eval "$(ssh-agent -s)"',
                     f"cd {PROJECT_PATH}",
                     "pwd",
-                    "git remote -v",
-                    "git remote remove origin",
-                    "git remote add origin git@github.com:Fab-Inc/fab-qurating.git",
-                    "git remote -v",
                     "ssh-keyscan -H github.com >> ~/.ssh/known_hosts",
-                    "git fetch",
-                    f"git branch --set-upstream-to=origin/{REV} {REV}",
+                    "git clone git@github.com:Fab-Inc/fab-qurating.git",
+                    f"cd {REPO_PATH}",
                     f"git switch {REV}",
-                    "git stash",
                     "git pull",
+                    f"{UV_PATH} run dvc remote modify --local azure account_key {dvc_key}",
                     f"{UV_PATH} run dvc pull",
                     f"{UV_PATH} sync --group linux-gpu",
                     f"{UV_PATH} run python {SCRIPT_PATH} {start_partition} {end_partition} --n-partitions {n_partitions}",
