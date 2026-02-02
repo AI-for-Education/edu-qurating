@@ -5,6 +5,7 @@ from io import BytesIO
 from tempfile import NamedTemporaryFile
 import time
 
+from tenacity import retry, wait_fixed, wait_random
 import typer
 from datasets import Dataset, load_dataset, get_dataset_config_names
 import numpy as np
@@ -15,6 +16,7 @@ from qurating.constants import RESULTS_DIR
 from qurating.inference import ModelAnnotator, TokenizeAndChunk
 
 
+@retry(wait=wait_fixed(60) + wait_random(0, 60))
 def init_dataset():
     ### configs are the different datasets (95, corresponding to CC dumps)
     configs = get_dataset_config_names("airtrain-ai/fineweb-edu-fortified")
@@ -105,11 +107,7 @@ def main(start_partition: int, end_partition: int, n_partitions: int = 32):
         "credential": os.getenv("AZURE_STORAGE_KEY"),
     }
 
-    try:
-        fw, subset_counts, fw_nshards = init_dataset()
-    except Exception:
-        time.sleep(40)
-        fw, subset_counts, fw_nshards = init_dataset()
+    fw, subset_counts, fw_nshards = init_dataset()
 
     subsets = get_partition_subsets(
         start_partition, end_partition, n_partitions, subset_counts
