@@ -35,10 +35,14 @@ REV = "do-adapt-oli-run-minimal-data"
 
 
 @retry
-def create_and_run_node(start_partition, end_partition, n_partitions):
+def create_and_run_node(start_partition, end_partition, n_partitions, log_folder_timestamp):
     logfile = (
-        LOG_DIR / f"score_node_log_{start_partition}_{end_partition}_{n_partitions}.txt"
+        LOG_DIR
+        / "score_nodes"
+        / log_folder_timestamp
+        / f"score_node_log_{start_partition}_{end_partition}_{n_partitions}.txt"
     )
+    logfile.parent.mkdir(exist_ok=True, parents=True)
     with open(logfile, "a+") as logf:
         node_name = (
             f"cc-qurating-scorer-{start_partition}-{end_partition}-{n_partitions}"
@@ -183,6 +187,7 @@ def run_node(host, start_partition, end_partition, n_partitions, logf):
             )
         )
 
+
 def init_dataset():
     ### configs are the different datasets (95, corresponding to CC dumps)
     configs = get_dataset_config_names("airtrain-ai/fineweb-edu-fortified")
@@ -236,6 +241,7 @@ def get_partition_subsets(start_partition, end_partition, n_partitions, subset_c
 n_partitions = 32
 njobs = 32
 fw, subset_counts, fw_nshards = init_dataset()
+log_folder_timestamp = datetime.now(UTC).isoformat(timespec="seconds")
 with ThreadPoolExecutor(max_workers=njobs) as executor:
     futures = [
         executor.submit(
@@ -243,6 +249,7 @@ with ThreadPoolExecutor(max_workers=njobs) as executor:
             start_partition=start_partition,
             end_partition=start_partition + 1,
             n_partitions=32,
+            log_folder_timestamp=log_folder_timestamp,
         )
         for start_partition in range(njobs)
     ]
