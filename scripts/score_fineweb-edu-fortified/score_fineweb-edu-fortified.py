@@ -84,6 +84,7 @@ def main(subsets: list[str]):
     client = AzureBlobClient(**AZURE_CLIENT_KWARGS)
 
     for subset in subsets:
+        print(f"Scoring subset: {subset}")
 
         keep_cols = ["id"]
         ds = load_dataset(
