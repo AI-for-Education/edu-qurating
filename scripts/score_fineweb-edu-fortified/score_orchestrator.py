@@ -9,6 +9,7 @@ from digitalocean.baseapi import DataReadError
 from fabric import Connection
 from invoke.watchers import StreamWatcher
 from dotenv import load_dotenv
+from tenacity import retry
 
 from qurating.constants import LOG_DIR
 
@@ -31,6 +32,7 @@ UV_PATH = "~/.local/bin/uv"
 REV = "do-adapt-oli-run-minimal-data"
 
 
+@retry
 def create_and_run_node(start_partition, end_partition, n_partitions):
     logfile = (
         LOG_DIR / f"score_node_log_{start_partition}_{end_partition}_{n_partitions}.txt"
@@ -49,18 +51,11 @@ def create_and_run_node(start_partition, end_partition, n_partitions):
                 run_node(
                     dp.ip_address, start_partition, end_partition, n_partitions, logf
                 )
-            except Exception:
-                try:
-                    run_node(
-                        dp.ip_address,
-                        start_partition,
-                        end_partition,
-                        n_partitions,
-                        logf,
-                    )
-                except Exception as e:
-                    dp.destroy()
-                    print(e)
+            except Exception as e:
+                dp.destroy()
+                raise e
+        else:
+            raise ValueError("Didn't create node")
 
 
 def create_node(name):
@@ -186,7 +181,7 @@ def run_node(host, start_partition, end_partition, n_partitions, logf):
 
 # %%
 n_partitions = 32
-njobs = 1
+njobs = 32
 with ThreadPoolExecutor(max_workers=njobs) as executor:
     futures = [
         executor.submit(
