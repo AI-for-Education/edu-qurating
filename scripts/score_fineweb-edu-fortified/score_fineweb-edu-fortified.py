@@ -4,68 +4,16 @@ import os
 from io import BytesIO
 from tempfile import NamedTemporaryFile
 import time
-import random
 
 import torch
-from tenacity import retry, wait_fixed, wait_random
 import typer
-from datasets import Dataset, load_dataset, get_dataset_config_names
+from datasets import Dataset, load_dataset
 import numpy as np
 from dotenv import load_dotenv
 from cloudpathlib import CloudPath, AzureBlobClient
 
 from qurating.constants import RESULTS_DIR
 from qurating.inference import ModelAnnotator, TokenizeAndChunk
-
-
-@retry(wait=wait_fixed(60) + wait_random(0, 60))
-def init_dataset():
-    ### configs are the different datasets (95, corresponding to CC dumps)
-    configs = get_dataset_config_names("airtrain-ai/fineweb-edu-fortified")
-
-    print(configs)
-    print(len(configs))
-
-    # get last n_configs for testing
-    ### NOTE: in fact, changed this now so we just take all of them
-    n_configs = len(configs)
-    use_configs = configs[-1 : -n_configs - 1 : -1]
-    print(use_configs)
-
-    # load each dataset by config name as a streaming dataset into the dict fw
-    fw = {}
-    for config in use_configs:
-        fw[config] = load_dataset(
-            "airtrain-ai/fineweb-edu-fortified",
-            name=config,
-            split="train",
-            streaming=True,
-            token=True,
-        )
-
-    ### length of each dataset
-    fw_len = {
-        config: fw_.info.splits["train"].num_examples for config, fw_ in fw.items()
-    }
-    # number of shards in each dataset
-    fw_nshards = {config: fw_.num_shards for config, fw_ in fw.items()}
-
-    return fw, fw_len, fw_nshards
-
-
-def get_partition_subsets(start_partition, end_partition, n_partitions, subset_counts):
-    partitions = [[]]
-    for subset, n_rows in sorted(
-        subset_counts.items(), key=lambda x: x[1], reverse=True
-    ):
-        if len(partitions) < n_partitions:
-            partitions.append([subset])
-        else:
-            min_part = np.argmin(
-                [sum(subset_counts[subset] for subset in part) for part in partitions]
-            )
-            partitions[min_part].append(subset)
-    return sum(partitions[start_partition:end_partition], [])
 
 
 def init_annotator():
@@ -102,7 +50,7 @@ def init_annotator():
     return annotator, tokenizer, model
 
 
-def main(start_partition: int, end_partition: int, n_partitions: int = 32):
+def main(subsets: list[str]):
     load_dotenv(override=True)
     AZURE_CLIENT_KWARGS = {
         "account_url": "https://quratingscoressa.blob.core.windows.net",
@@ -112,25 +60,20 @@ def main(start_partition: int, end_partition: int, n_partitions: int = 32):
     cuda_avail = torch.cuda.is_available()
     print(cuda_avail)
     print(torch.cuda.get_device_name(0))
-    print('__CUDNN VERSION:', torch.backends.cudnn.version())
-    print('__Number CUDA Devices:', torch.cuda.device_count())
-    print('__CUDA Device Name:',torch.cuda.get_device_name(0))
-    print('__CUDA Device Total Memory [GB]:',torch.cuda.get_device_properties(0).total_memory/1e9)
-    print('Memory Usage:')
-    print('Allocated:', round(torch.cuda.memory_allocated(0)/1024**3,1), 'GB')
-    print('Cached:   ', round(torch.cuda.memory_reserved(0)/1024**3,1), 'GB')
-    
+    print("__CUDNN VERSION:", torch.backends.cudnn.version())
+    print("__Number CUDA Devices:", torch.cuda.device_count())
+    print("__CUDA Device Name:", torch.cuda.get_device_name(0))
+    print(
+        "__CUDA Device Total Memory [GB]:",
+        torch.cuda.get_device_properties(0).total_memory / 1e9,
+    )
+    print("Memory Usage:")
+    print("Allocated:", round(torch.cuda.memory_allocated(0) / 1024**3, 1), "GB")
+    print("Cached:   ", round(torch.cuda.memory_reserved(0) / 1024**3, 1), "GB")
+
     if not cuda_avail:
         raise ValueError("CUDA not available")
 
-    time.sleep(60 + random.random() * 60)
-    fw, subset_counts, fw_nshards = init_dataset()
-
-    subsets = get_partition_subsets(
-        start_partition, end_partition, n_partitions, subset_counts
-    )
-    
-    time.sleep(60 + random.random() * 60)
     annotator, tokenizer, model_name = init_annotator()
     model_string = [
         substr for substr in Path(model_name).parts if substr.startswith("qurater_")
@@ -143,7 +86,13 @@ def main(start_partition: int, end_partition: int, n_partitions: int = 32):
     for subset in subsets:
 
         keep_cols = ["id"]
-        ds: Dataset = fw[subset]
+        ds = load_dataset(
+            "airtrain-ai/fineweb-edu-fortified",
+            name=subset,
+            split="train",
+            streaming=True,
+            token=True,
+        )
         outer_batch_size = 100000
 
         for batchi, batch_ds in enumerate(ds.batch(batch_size=outer_batch_size)):
