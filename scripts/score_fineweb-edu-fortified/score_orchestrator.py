@@ -71,7 +71,7 @@ def create_node(name):
     else:
         raise ValueError(f"Couldn't find project named {target_project_name}")
 
-    regions = ["ams3", "atl1", "nyc2", "sfo3", "tor1"]
+    regions = ["nyc2", "tor1", "ams3", "atl1", "sfo3"]
     region_idx = 0
     created = False
     while not created:
@@ -234,7 +234,7 @@ def get_partition_subsets(start_partition, end_partition, n_partitions, subset_c
 
 # %%
 n_partitions = 32
-njobs = 1
+njobs = 32
 fw, subset_counts, fw_nshards = init_dataset()
 with ThreadPoolExecutor(max_workers=njobs) as executor:
     futures = [
