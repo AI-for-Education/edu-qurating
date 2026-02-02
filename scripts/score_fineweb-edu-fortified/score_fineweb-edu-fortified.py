@@ -4,6 +4,7 @@ import os
 from io import BytesIO
 from tempfile import NamedTemporaryFile
 import time
+import random
 
 from tenacity import retry, wait_fixed, wait_random
 import typer
@@ -107,12 +108,14 @@ def main(start_partition: int, end_partition: int, n_partitions: int = 32):
         "credential": os.getenv("AZURE_STORAGE_KEY"),
     }
 
+    time.sleep(random.random() * 120)
     fw, subset_counts, fw_nshards = init_dataset()
 
     subsets = get_partition_subsets(
         start_partition, end_partition, n_partitions, subset_counts
     )
-
+    
+    time.sleep(random.random() * 120)
     annotator, tokenizer, model_name = init_annotator()
     model_string = [
         substr for substr in Path(model_name).parts if substr.startswith("qurater_")

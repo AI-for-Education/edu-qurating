@@ -130,7 +130,7 @@ def run_node(host, start_partition, end_partition, n_partitions, logf):
             ) as conn:
                 conn.run("pwd")
             connectable = True
-            time.sleep(5)
+            time.sleep(60)
         except Exception as e:
             if n_retry > max_retries:
                 raise e
@@ -151,7 +151,7 @@ def run_node(host, start_partition, end_partition, n_partitions, logf):
                 )
                 for i, ln in enumerate(stream.splitlines()):
                     if i >= self.pos:
-                        print(f"\n{ln}", file=logf)
+                        print(f"{ln}", file=logf)
                         self.pos += 1
                 return []
 
@@ -186,7 +186,7 @@ def run_node(host, start_partition, end_partition, n_partitions, logf):
 
 # %%
 n_partitions = 32
-njobs = 32
+njobs = 1
 with ThreadPoolExecutor(max_workers=njobs) as executor:
     futures = [
         executor.submit(
