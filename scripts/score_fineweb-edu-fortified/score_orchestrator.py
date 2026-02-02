@@ -57,6 +57,7 @@ def create_and_run_node(start_partition, end_partition, n_partitions, log_folder
                 run_node(
                     dp.ip_address, start_partition, end_partition, n_partitions, logf
                 )
+                dp.destroy()
             except Exception as e:
                 dp.destroy()
                 raise e
