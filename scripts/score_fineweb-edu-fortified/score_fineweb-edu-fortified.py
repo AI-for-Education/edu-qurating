@@ -144,12 +144,9 @@ def main(start_partition: int, end_partition: int, n_partitions: int = 32):
 
         keep_cols = ["id"]
         ds: Dataset = fw[subset]
-        max_batch_cnt = 3
         outer_batch_size = 100000
 
         for batchi, batch_ds in enumerate(ds.batch(batch_size=outer_batch_size)):
-            if batchi >= max_batch_cnt:
-                break
             ############################
             full_path = (
                 f"quratingscores/{model_string}/{subset}/{subset}_{batchi :04d}.parquet"
