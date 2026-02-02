@@ -99,12 +99,14 @@ def main(subsets: list[str]):
         outer_batch_size = 100000
 
         for batchi, batch_ds in enumerate(ds.batch(batch_size=outer_batch_size)):
+            print(f"Scoring batch: {batchi}")
             ############################
             full_path = (
                 f"quratingscores/{model_string}/{subset}/{subset}_{batchi :04d}.parquet"
             )
             cloud_path = CloudPath(f"az://{full_path}", client=client)
             if cloud_path.exists():
+                print(f"Skipping batch: {batchi}")
                 continue
             ############################
             run_ds = Dataset.from_dict(batch_ds)
@@ -125,6 +127,7 @@ def main(subsets: list[str]):
             out_cols = [
                 "id",
                 *[col for col in results.column_names if col.endswith("_average")],
+                *[col for col in results.column_names if col.endswith("_chunks")],
             ]
             out_ds = results.select_columns(out_cols).add_column(
                 "dump", [subset] * len(results)
