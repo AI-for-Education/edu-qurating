@@ -123,14 +123,14 @@ def main(start_partition: int, end_partition: int, n_partitions: int = 32):
     if not cuda_avail:
         raise ValueError("CUDA not available")
 
-    time.sleep(random.random() * 120)
+    time.sleep(60 + random.random() * 60)
     fw, subset_counts, fw_nshards = init_dataset()
 
     subsets = get_partition_subsets(
         start_partition, end_partition, n_partitions, subset_counts
     )
     
-    time.sleep(random.random() * 120)
+    time.sleep(60 + random.random() * 60)
     annotator, tokenizer, model_name = init_annotator()
     model_string = [
         substr for substr in Path(model_name).parts if substr.startswith("qurater_")

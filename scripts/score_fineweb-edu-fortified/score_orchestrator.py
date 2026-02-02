@@ -181,7 +181,7 @@ def run_node(host, start_partition, end_partition, n_partitions, logf):
 
 # %%
 n_partitions = 32
-njobs = 32
+njobs = 1
 with ThreadPoolExecutor(max_workers=njobs) as executor:
     futures = [
         executor.submit(
