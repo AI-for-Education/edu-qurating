@@ -6,6 +6,7 @@ from tempfile import NamedTemporaryFile
 import time
 import random
 
+import torch
 from tenacity import retry, wait_fixed, wait_random
 import typer
 from datasets import Dataset, load_dataset, get_dataset_config_names
@@ -107,6 +108,20 @@ def main(start_partition: int, end_partition: int, n_partitions: int = 32):
         "account_url": "https://quratingscoressa.blob.core.windows.net",
         "credential": os.getenv("AZURE_STORAGE_KEY"),
     }
+
+    cuda_avail = torch.cuda.is_available()
+    print(cuda_avail)
+    print(torch.cuda.get_device_name(0))
+    print('__CUDNN VERSION:', torch.backends.cudnn.version())
+    print('__Number CUDA Devices:', torch.cuda.device_count())
+    print('__CUDA Device Name:',torch.cuda.get_device_name(0))
+    print('__CUDA Device Total Memory [GB]:',torch.cuda.get_device_properties(0).total_memory/1e9)
+    print('Memory Usage:')
+    print('Allocated:', round(torch.cuda.memory_allocated(0)/1024**3,1), 'GB')
+    print('Cached:   ', round(torch.cuda.memory_reserved(0)/1024**3,1), 'GB')
+    
+    if not cuda_avail:
+        raise ValueError("CUDA not available")
 
     time.sleep(random.random() * 120)
     fw, subset_counts, fw_nshards = init_dataset()
