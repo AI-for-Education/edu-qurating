@@ -31,20 +31,25 @@ droplet_snapshots = manager.get_all_snapshots()
 print(droplet_snapshots)
 
 # %%
-droplet = digitalocean.Droplet(
-    name="test-droplet-1",
-    size_slug="gpu-h200x1-141gb",
-    image="214386455",
-    region="nyc2",
-    ssh_keys=["3f:7b:15:32:65:f7:8d:7e:b5:1d:10:83:a6:d9:e4:2f"],
-)
-
-try:
-    droplet.create()
-    created = True
-except DataReadError as e:
-    created = False
-    print(e)
+regions = ["ams3", "atl1", "nyc2", "sfo3", "tor1"]
+region_idx = 0
+created = False
+while not created:
+    droplet = digitalocean.Droplet(
+        name="test-droplet-1",
+        size_slug="gpu-h200x1-141gb",
+        image="215315195",
+        region=regions[region_idx],
+        ssh_keys=["3f:7b:15:32:65:f7:8d:7e:b5:1d:10:83:a6:d9:e4:2f"],
+    )
+    try:
+        droplet.create()
+        created = True
+    except DataReadError as e:
+        created = False
+        region_idx +=1
+        if region_idx > len(regions):
+            raise e
 
 sleep_time = 3
 if created:

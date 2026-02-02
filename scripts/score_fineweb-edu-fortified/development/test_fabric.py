@@ -30,7 +30,8 @@ def run_node(host, start_partition, end_partition, n_partitions):
         host, connect_kwargs={"key_filename": key_filename}, inline_ssh_env=True
     ) as conn:
         conn.config.run.env = {
-            "AZURE_STORAGE_KEY": os.getenv("FABRIC_TEST_AZURE_STORAGE_KEY")
+            "AZURE_STORAGE_KEY": os.getenv("FABRIC_TEST_AZURE_STORAGE_KEY"),
+            "HF_TOKEN": os.getenv("HF_TOKEN"),
         }
         result = conn.run(
             " && ".join(
