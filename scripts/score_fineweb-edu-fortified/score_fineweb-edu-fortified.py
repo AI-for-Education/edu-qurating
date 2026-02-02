@@ -156,7 +156,7 @@ def main(subsets: list[str]):
                     f.seek(0)
                     print(f.name)
                     temp_ds = Dataset.from_parquet(f.name, keep_in_memory=True)
-                valid = (temp_ds.to_pandas() == out_ds.to_pandas()).all().all()
+                valid = all(temp_row == out_row for temp_row, out_row in zip(temp_ds, out_ds))
             assert valid
             print(f"Elapsed time: {time.perf_counter() - st :.04f}")
             time.sleep(0.1)
