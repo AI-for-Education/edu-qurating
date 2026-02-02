@@ -239,7 +239,7 @@ def get_partition_subsets(start_partition, end_partition, n_partitions, subset_c
 
 # %%
 n_partitions = 32
-njobs = 32
+njobs = 1
 fw, subset_counts, fw_nshards = init_dataset()
 log_folder_timestamp = datetime.now(UTC).isoformat(timespec="seconds")
 with ThreadPoolExecutor(max_workers=njobs) as executor:

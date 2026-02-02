@@ -96,7 +96,7 @@ def main(subsets: list[str]):
             streaming=True,
             token=True,
         )
-        outer_batch_size = 100000
+        outer_batch_size = 2000
 
         for batchi, batch_ds in enumerate(ds.batch(batch_size=outer_batch_size)):
             print(f"Scoring batch: {batchi}")
