@@ -105,7 +105,11 @@ def main(start_partition: int, end_partition: int, n_partitions: int = 32):
         "credential": os.getenv("AZURE_STORAGE_KEY"),
     }
 
-    fw, subset_counts, fw_nshards = init_dataset()
+    try:
+        fw, subset_counts, fw_nshards = init_dataset()
+    except Exception:
+        time.sleep(40)
+        fw, subset_counts, fw_nshards = init_dataset()
 
     subsets = get_partition_subsets(
         start_partition, end_partition, n_partitions, subset_counts

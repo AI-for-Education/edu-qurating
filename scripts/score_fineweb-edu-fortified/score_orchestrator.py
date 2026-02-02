@@ -32,14 +32,35 @@ REV = "do-adapt-oli-run-minimal-data"
 
 
 def create_and_run_node(start_partition, end_partition, n_partitions):
-    node_name = f"cc-qurating-scorer-{start_partition}-{end_partition}-{n_partitions}"
-    dp = create_node(node_name)
-    if dp is not None:
-        try:
-            run_node(dp.ip_address, start_partition, end_partition, n_partitions)
-        except Exception as e:
-            dp.destroy()
-            print(e)
+    logfile = (
+        LOG_DIR / f"score_node_log_{start_partition}_{end_partition}_{n_partitions}.txt"
+    )
+    with open(logfile, "a+") as logf:
+        node_name = (
+            f"cc-qurating-scorer-{start_partition}-{end_partition}-{n_partitions}"
+        )
+        dp = create_node(node_name)
+        if dp is None:
+            print(f"FAILED TO CREATE NODE: {node_name}", file=logf)
+            print("TRYING AGAIN", file=logf)
+            dp = create_node(node_name)
+        if dp is not None:
+            try:
+                run_node(
+                    dp.ip_address, start_partition, end_partition, n_partitions, logf
+                )
+            except Exception:
+                try:
+                    run_node(
+                        dp.ip_address,
+                        start_partition,
+                        end_partition,
+                        n_partitions,
+                        logf,
+                    )
+                except Exception as e:
+                    dp.destroy()
+                    print(e)
 
 
 def create_node(name):
@@ -73,7 +94,7 @@ def create_node(name):
             if region_idx > len(regions):
                 raise e
 
-    sleep_time = 5
+    sleep_time = 30
     if created:
         while True:
             print(f"Checking droplet status: {droplet.name}")
@@ -98,7 +119,7 @@ def create_node(name):
     return dp
 
 
-def run_node(host, start_partition, end_partition, n_partitions):
+def run_node(host, start_partition, end_partition, n_partitions, logf):
     connectable = False
     max_retries = 10
     n_retry = 0
@@ -109,67 +130,63 @@ def run_node(host, start_partition, end_partition, n_partitions):
             ) as conn:
                 conn.run("pwd")
             connectable = True
+            time.sleep(5)
         except Exception as e:
             if n_retry > max_retries:
                 raise e
             n_retry += 1
-            time.sleep(5)
+            time.sleep(10)
     #################
     with Connection(
         host, connect_kwargs={"key_filename": key_filename}, inline_ssh_env=True
     ) as conn:
-        logfile = (
-            LOG_DIR
-            / f"score_node_log_{host}_{start_partition}_{end_partition}_{n_partitions}.txt"
-        )
-        with open(logfile, "a+") as logf:
 
-            class OutputWatcher(StreamWatcher):
-                pos = 0
+        class OutputWatcher(StreamWatcher):
+            pos = 0
 
-                def submit(self, stream):
-                    print(
-                        f"{host} - {datetime.now(UTC).isoformat()}",
-                        file=logf,
-                    )
-                    for i, ln in enumerate(stream.splitlines()):
-                        if i >= self.pos:
-                            print(f"\n{ln}", file=logf)
-                            self.pos += 1
-                    return []
-
-            conn.config.run.watchers = [OutputWatcher()]
-            conn.config.run.env = {
-                "AZURE_STORAGE_KEY": os.getenv("FABRIC_TEST_AZURE_STORAGE_KEY"),
-                "HF_TOKEN": os.getenv("HF_TOKEN"),
-            }
-            result = conn.run(
-                " && ".join(
-                    [
-                        "echo $0",
-                        'eval "$(ssh-agent -s)"',
-                        f"cd {PROJECT_PATH}",
-                        "pwd",
-                        "rm -fr ./fab-qurating",
-                        "ssh-keyscan -H github.com >> ~/.ssh/known_hosts",
-                        "git clone git@github.com:Fab-Inc/fab-qurating.git",
-                        f"cd {REPO_PATH}",
-                        f"git switch {REV}",
-                        "git pull",
-                        f"{UV_PATH} sync --group linux-gpu",
-                        f"{UV_PATH} run dvc remote modify --local azure account_key {dvc_key}",
-                        f"{UV_PATH} run dvc pull",
-                        ## run again to improve chance of getting everything
-                        f"{UV_PATH} run dvc pull",
-                        f"{UV_PATH} run python {SCRIPT_PATH} {start_partition} {end_partition} --n-partitions {n_partitions}",
-                    ]
+            def submit(self, stream):
+                print(
+                    f"{host} - {datetime.now(UTC).isoformat()}",
+                    file=logf,
                 )
+                for i, ln in enumerate(stream.splitlines()):
+                    if i >= self.pos:
+                        print(f"\n{ln}", file=logf)
+                        self.pos += 1
+                return []
+
+        conn.config.run.watchers = [OutputWatcher()]
+        conn.config.run.env = {
+            "AZURE_STORAGE_KEY": os.getenv("FABRIC_TEST_AZURE_STORAGE_KEY"),
+            "HF_TOKEN": os.getenv("HF_TOKEN"),
+        }
+        result = conn.run(
+            " && ".join(
+                [
+                    "echo $0",
+                    'eval "$(ssh-agent -s)"',
+                    f"cd {PROJECT_PATH}",
+                    "pwd",
+                    "rm -fr ./fab-qurating",
+                    "ssh-keyscan -H github.com >> ~/.ssh/known_hosts",
+                    "git clone git@github.com:Fab-Inc/fab-qurating.git",
+                    f"cd {REPO_PATH}",
+                    f"git switch {REV}",
+                    "git pull",
+                    f"{UV_PATH} sync --group linux-gpu",
+                    f"{UV_PATH} run dvc remote modify --local azure account_key {dvc_key}",
+                    f"{UV_PATH} run dvc pull",
+                    ## run again to improve chance of getting everything
+                    f"{UV_PATH} run dvc pull",
+                    f"{UV_PATH} run python {SCRIPT_PATH} {start_partition} {end_partition} --n-partitions {n_partitions}",
+                ]
             )
+        )
 
 
 # %%
 n_partitions = 32
-njobs = 4
+njobs = 32
 with ThreadPoolExecutor(max_workers=njobs) as executor:
     futures = [
         executor.submit(
