@@ -27,6 +27,7 @@ model_string = model_string[0]
 
 # %%
 last_run = {}
+last_update_time = {}
 
 # %%
 AZURE_CLIENT_KWARGS = {
@@ -35,10 +36,12 @@ AZURE_CLIENT_KWARGS = {
 }
 client = AzureBlobClient(**AZURE_CLIENT_KWARGS)
 
+# should flag if no update 60 mins after last update
+should_have_updated_time = 3600
 outer_batch_size = 100000
 for start_partition in range(n_partitions):
     subsets = get_partition_subsets(
-        start_partition, start_partition+1, n_partitions, subset_counts
+        start_partition, start_partition + 1, n_partitions, subset_counts
     )
     n_rows_partition = sum(subset_counts[subset] for subset in subsets)
     nbatches_partition = {}
@@ -49,7 +52,7 @@ for start_partition in range(n_partitions):
         if nbatches < nbatches_float:
             nbatches += 1
         nbatches_partition[subset] = nbatches
-    
+
     nbatches_partition_tot = sum(nbatches_partition.values())
     cnt_batches_partition = 0
     for subset in subsets:
@@ -74,11 +77,24 @@ for start_partition in range(n_partitions):
             else:
                 # we can short-cicuit here due to knowing the order that batches are processed
                 break
-    prct = (cnt_batches_partition / nbatches_partition_tot)*100
+    new_time = time.perf_counter()
+    prct = (cnt_batches_partition / nbatches_partition_tot) * 100
     diff = prct - last_run.get(start_partition, 0)
     if diff > 0:
-        increase = f" (+{diff :0.3f})"
+        increase = f" (+{diff :0.2f})"
+        slow_update_flag = ""
+        last_update_time[start_partition] = new_time
     else:
         increase = ""
-    print(f"Partition: {start_partition} - Progress: {prct :.02f}{increase}")
+        if (
+            new_time - last_update_time.get(start_partition, new_time)
+            > should_have_updated_time
+        ):
+            slow_update_flag = " - THIS ONE IS SLOW"
+        else:
+            slow_update_flag = ""
+
+    print(
+        f"Partition: {start_partition} - Progress: {prct :.02f}{increase}{slow_update_flag}"
+    )
     last_run[start_partition] = prct
