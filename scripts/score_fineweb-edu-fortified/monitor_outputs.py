@@ -82,19 +82,24 @@ for start_partition in range(n_partitions):
     diff = prct - last_run.get(start_partition, 0)
     if diff > 0:
         increase = f" (+{diff :0.2f})"
-        slow_update_flag = ""
+        if prct == 100:
+            extra_message = " - COMPLETE!"
+        else:
+            extra_message = ""
         last_update_time[start_partition] = new_time
     else:
         increase = ""
-        if (
+        if prct == 100:
+            extra_message = " - COMPLETE!"
+        elif (
             new_time - last_update_time.get(start_partition, new_time)
             > should_have_updated_time
         ):
-            slow_update_flag = " - THIS ONE IS SLOW"
+            extra_message = " - THIS ONE IS SLOW"
         else:
-            slow_update_flag = ""
+            extra_message = ""
 
     print(
-        f"Partition: {start_partition} - Progress: {prct :.02f}{increase}{slow_update_flag}"
+        f"Partition: {start_partition} - Progress: {prct :.02f}{increase}{extra_message}"
     )
     last_run[start_partition] = prct
