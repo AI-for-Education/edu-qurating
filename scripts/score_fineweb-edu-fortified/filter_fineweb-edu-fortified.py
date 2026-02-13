@@ -130,4 +130,4 @@ del scores_arr
 del scores_df
 
 p = Parallel(n_jobs=n_jobs, verbose=60)
-out = p(delayed(filter_subset(subset, copy.deepcopy(filters))) for subset in configs)
+out = p(delayed(filter_subset)(subset, copy.deepcopy(filters)) for subset in configs)
