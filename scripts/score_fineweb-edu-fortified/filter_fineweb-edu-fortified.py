@@ -1,18 +1,17 @@
 # %%
 from pathlib import Path
 import os
-import time
-from tempfile import NamedTemporaryFile
+from tempfile import NamedTemporaryFile, TemporaryDirectory
+from functools import reduce
+import copy
 
-import pandas as pd
-from joblib import Parallel, delayed
 from tqdm import tqdm
 import numpy as np
+import pandas as pd
+from joblib import Parallel, delayed
 from dotenv import load_dotenv
 from cloudpathlib import CloudPath, AzureBlobClient
-from datasets import Dataset, get_dataset_config_names
-
-from qurating.scoring_projects.fwe_fortified.utils import get_partition_subsets
+from datasets import Dataset, get_dataset_config_names, load_dataset
 
 load_dotenv(override=True)
 
@@ -31,7 +30,49 @@ AZURE_CLIENT_KWARGS = {
     "account_url": "https://quratingscoressa.blob.core.windows.net",
     "credential": os.getenv("QURATING_SCORES_AZURE_STORAGE_KEY"),
 }
-client = AzureBlobClient(**AZURE_CLIENT_KWARGS)
+
+
+def filter_subset(subset, filters):
+    scores = load_subset(subset)
+    fwe_ds = load_dataset(
+        "airtrain-ai/fineweb-edu-fortified",
+        name=subset,
+        split="train",
+        streaming=True,
+        token=True,
+    )
+    filtered_rows_list = []
+    for (_, score_row), fwe_row in tqdm(
+        zip(scores.iterrows(), fwe_ds), total=fwe_ds.info.splits["train"].num_examples
+    ):
+        filt_list = [score_row[col] > val for col, val in filters.items()]
+        filt = reduce(lambda a, b: a and b, filt_list)
+        assert score_row["id"] == fwe_row["id"]
+        if filt:
+            filtered_rows_list.append(
+                {
+                    **fwe_row,
+                    **{
+                        key: val
+                        for key, val in score_row.items()
+                        if key.endswith("_average")
+                    },
+                }
+            )
+    ds = Dataset.from_list(filtered_rows_list)
+    ## save dataset
+    client = AzureBlobClient(**AZURE_CLIENT_KWARGS)
+    with TemporaryDirectory() as tdir:
+        savedir = Path(tdir) / "dataset"
+        ds.save_to_disk(str(savedir), max_shard_size="50MB")
+        fl_list = sorted(savedir.glob("*"))
+        for fl in tqdm(fl_list):
+            full_path = (
+                f"quratingfiltered/{model_string}/{subset}/{fl.relative_to(savedir)}"
+            )
+            cloud_path = CloudPath(f"az://{full_path}", client=client)
+            cloud_path.upload_from(fl)
+    client.close()
 
 
 def load_subset(subset):
@@ -45,7 +86,9 @@ def load_subset(subset):
         batchi += 1
     return pd.concat(df_list, axis=0, ignore_index=True)
 
+
 def load_batch(subset, batchi):
+    client = AzureBlobClient(**AZURE_CLIENT_KWARGS)
     full_path = f"quratingscores/{model_string}/{subset}/{subset}_{batchi :04d}.parquet"
     cloud_path = CloudPath(f"az://{full_path}", client=client)
     ## return null if it doesn't exist
@@ -64,3 +107,27 @@ def load_batch(subset, batchi):
 ds = load_batch(configs[0], 0)
 
 # %%
+### load scores
+n_jobs = 30
+p = Parallel(n_jobs=n_jobs, verbose=60)
+
+df_list = p(delayed(load_subset)(subset) for subset in configs)
+
+scores_df = pd.concat(df_list, axis=0, ignore_index=True)
+scores_arr = np.array(scores_df.iloc[:, 1:])
+
+# %%
+# get percentiles
+pct_edges = [50, 75, 90, 95]
+pct = np.percentile(scores_arr, pct_edges, axis=0)
+
+print(pct)
+
+# %%
+filters = {col: pct[0, i].item() for i, col in enumerate(scores_df.columns[4:])}
+
+del scores_arr
+del scores_df
+
+p = Parallel(n_jobs=n_jobs, verbose=60)
+out = p(delayed(filter_subset(subset, copy.deepcopy(filters))) for subset in configs)
