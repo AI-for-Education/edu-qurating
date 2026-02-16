@@ -137,7 +137,7 @@ with Parallel(n_jobs=cpu_count() - 2, verbose=60) as p:
 # %%
 ntokens_tot = 0
 for subset, ntokens_subset in out:
-    for batchi, ntokens_batch in ntokens_subset:
+    for batchi, ntokens_batch in enumerate(ntokens_subset):
         ntokens_batch_tot = sum(ntokens_batch) * 1e-6
         print(f"{subset} - {batchi}: {ntokens_batch :.03f}")
         ntokens_tot += ntokens_batch
