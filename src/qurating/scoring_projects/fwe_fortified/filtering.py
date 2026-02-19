@@ -26,7 +26,7 @@ def filter_subset(subset, filters, model_string, azure_client_kwargs):
         gen_score_batches(subset, model_string, azure_client_kwargs)
     ):
         full_path = (
-            f"quratingfiltered/{model_string}/{subset}/{subset}_{batchi :04d}.parquet"
+            f"quratingfiltered-noemb/{model_string}/{subset}/{subset}_{batchi :04d}.parquet"
         )
         client = AzureBlobClient(**azure_client_kwargs)
         cloud_path = CloudPath(f"az://{full_path}", client=client)
@@ -51,7 +51,7 @@ def filter_subset(subset, filters, model_string, azure_client_kwargs):
                         **{
                             key: val
                             for key, val in fwe_row.items()
-                            if key not in ["embeddings"]
+                            if key not in ["embedding"]
                         },
                         **{
                             key: val
@@ -143,7 +143,7 @@ def gen_filtered_batches(subset, model_string, azure_client_kwargs, to_pandas=Tr
 def load_filtered_batch(subset, batchi, model_string, azure_client_kwargs, to_pandas=True):
     client = AzureBlobClient(**azure_client_kwargs)
     full_path = (
-        f"quratingfiltered/{model_string}/{subset}/{subset}_{batchi :04d}.parquet"
+        f"quratingfiltered-noemb/{model_string}/{subset}/{subset}_{batchi :04d}.parquet"
     )
     cloud_path = CloudPath(f"az://{full_path}", client=client)
     ## return null if it doesn't exist
@@ -179,7 +179,7 @@ def gen_filtered_batches_info(subset, model_string, azure_client_kwargs):
 def load_filtered_batch_info(subset, batchi, model_string, azure_client_kwargs):
     client = AzureBlobClient(**azure_client_kwargs)
     full_path = (
-        f"quratingfiltered/{model_string}/{subset}/{subset}_{batchi :04d}.parquet"
+        f"quratingfiltered-noemb/{model_string}/{subset}/{subset}_{batchi :04d}.parquet"
     )
     cloud_path = CloudPath(f"az://{full_path}", client=client)
     ## return null if it doesn't exist
