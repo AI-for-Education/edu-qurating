@@ -28,17 +28,26 @@ for sz in droplet_sizes:
     )
 
 droplet_snapshots = manager.get_all_snapshots()
-print(droplet_snapshots)
+for snapshot in droplet_snapshots:
+    print(snapshot)
+
+droplet_images = manager.get_all_images()
+for image in droplet_images:
+    if "1-Click".lower() in image.name.lower():
+        print(image)
 
 # %%
-regions = ["ams3", "atl1", "nyc2", "sfo3", "tor1"]
+regions = ["nyc2", "sfo3", "tor1", "ams3", "atl1"]
 region_idx = 0
 created = False
+errors = {}
 while not created:
     droplet = digitalocean.Droplet(
         name="test-droplet-1",
-        size_slug="gpu-h200x1-141gb",
-        image="215315195",
+        size_slug="gpu-6000adax1-48gb",
+        # size_slug="gpu-h100x8-640gb",
+        image="214151830",
+        # image="201061338",
         region=regions[region_idx],
         ssh_keys=["3f:7b:15:32:65:f7:8d:7e:b5:1d:10:83:a6:d9:e4:2f"],
     )
@@ -46,10 +55,13 @@ while not created:
         droplet.create()
         created = True
     except DataReadError as e:
+        errors[regions[region_idx]] = e
         created = False
         region_idx +=1
-        if region_idx > len(regions):
-            raise e
+        if region_idx >= len(regions):
+            for reg, e_ in errors.items():
+                print(f"{reg}: {e_}")
+            break
 
 sleep_time = 3
 if created:
@@ -67,7 +79,7 @@ if created:
         else:
             print("Not ready")
             print(f"Checking again in {sleep_time}s")
-            time.sleep(sleep_time)
+        time.sleep(sleep_time)
 
 # %%
 dp.destroy()

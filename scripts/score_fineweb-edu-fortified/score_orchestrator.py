@@ -69,7 +69,7 @@ def create_and_run_node(
             raise ValueError("Didn't create node")
 
 
-def create_node(name):
+def create_node(name, size_slug="gpu-h200x1-141gb", image="215315195"):
     manager = digitalocean.Manager()
     target_project_name = "Content Curation"
     do_project = [
@@ -86,8 +86,8 @@ def create_node(name):
     while not created:
         droplet = digitalocean.Droplet(
             name=name,
-            size_slug="gpu-h200x1-141gb",
-            image="215315195",
+            size_slug=size_slug,
+            image=image,
             region=regions[region_idx],
             ssh_keys=["3f:7b:15:32:65:f7:8d:7e:b5:1d:10:83:a6:d9:e4:2f"],
         )
