@@ -9,8 +9,16 @@ from cloudpathlib import CloudPath, AzureBlobClient
 from datasets import Dataset, load_dataset
 
 
-def filter_subset(subset, filters, model_string, azure_client_kwargs):
+def filter_subset(
+    subset, filters, filter_greater_than, model_string, azure_client_kwargs
+):
     pool = pa.default_memory_pool()
+
+    container = (
+        "quratingfiltered-noemb"
+        if filter_greater_than
+        else "quratingfiltered-low-noemb"
+    )
 
     fwe_ds = load_dataset(
         "airtrain-ai/fineweb-edu-fortified",
@@ -25,9 +33,7 @@ def filter_subset(subset, filters, model_string, azure_client_kwargs):
     for batchi, batch_scores in enumerate(
         gen_score_batches(subset, model_string, azure_client_kwargs)
     ):
-        full_path = (
-            f"quratingfiltered-noemb/{model_string}/{subset}/{subset}_{batchi :04d}.parquet"
-        )
+        full_path = f"{container}/{model_string}/{subset}/{subset}_{batchi :04d}.parquet"
         client = AzureBlobClient(**azure_client_kwargs)
         cloud_path = CloudPath(f"az://{full_path}", client=client)
         if cloud_path.exists():
@@ -39,7 +45,10 @@ def filter_subset(subset, filters, model_string, azure_client_kwargs):
             if prog * 100 % 10 == 0:
                 print(f"{subset}: {prog :.03f}%")
             fwe_row = next(fwe_iter)
-            filt_list = [score_row[col] > val for col, val in filters.items()]
+            filt_list = [
+                score_row[col] > val if filter_greater_than else score_row[col] <= val
+                for col, val in filters.items()
+            ]
             filt = reduce(lambda a, b: a and b, filt_list)
             if score_row["id"] != fwe_row["id"]:
                 errstr = f"ID mismatch: {subset} - row {iteri}"
@@ -133,14 +142,18 @@ def load_score_batch(subset, batchi, model_string, azure_client_kwargs):
 def gen_filtered_batches(subset, model_string, azure_client_kwargs, to_pandas=True):
     batchi = 0
     while True:
-        df = load_filtered_batch(subset, batchi, model_string, azure_client_kwargs, to_pandas=to_pandas)
+        df = load_filtered_batch(
+            subset, batchi, model_string, azure_client_kwargs, to_pandas=to_pandas
+        )
         if df is None:
             break
         batchi += 1
         yield df
 
 
-def load_filtered_batch(subset, batchi, model_string, azure_client_kwargs, to_pandas=True):
+def load_filtered_batch(
+    subset, batchi, model_string, azure_client_kwargs, to_pandas=True
+):
     client = AzureBlobClient(**azure_client_kwargs)
     full_path = (
         f"quratingfiltered-noemb/{model_string}/{subset}/{subset}_{batchi :04d}.parquet"
