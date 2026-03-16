@@ -2,6 +2,7 @@
 import time
 from datetime import datetime, UTC
 
+import typer
 import jsonlines
 import digitalocean
 from digitalocean.baseapi import DataReadError
@@ -14,7 +15,10 @@ load_dotenv(override=True)
 
 # %%
 def create_node(
-    name: str, size_slug: str = "gpu-h200x1-141gb", image: str = "215315195"
+    name: str,
+    size_slug: str = "gpu-h200x1-141gb",
+    image: str = "215315195",
+    wait_for_init: bool = True,
 ) -> tuple[bool, digitalocean.Droplet | dict]:
     manager = digitalocean.Manager()
     target_project_name = "Content Curation"
@@ -49,7 +53,8 @@ def create_node(
                 return False, errors
 
     sleep_time = 30
-    if created:
+    dp = manager.get_droplet(droplet.id)
+    if created and wait_for_init:
         while True:
             print(f"Checking droplet status: {droplet.name}")
             try:
@@ -69,8 +74,7 @@ def create_node(
                     print("Not ready")
                     print(f"Checking again in {sleep_time}s")
                     time.sleep(sleep_time)
-
-    return True, dp
+    return created, dp
 
 
 # %%
@@ -99,45 +103,58 @@ for image in droplet_images:
     if "1-Click".lower() in image.name.lower():
         print(image)
 
+
 # %%
-size_slug = "gpu-h100x8-640gb"
-image = "194099177"
+def main(size_slug: str = "gpu-h100x8-640gb", image: str = "194099177"):
+    logfile = LOG_DIR / "api_polling" / f"{size_slug}_{image}.jsonl"
+    logfile.parent.mkdir(exist_ok=True, parents=True)
 
-logfile = LOG_DIR / "api_polling" / f"{size_slug}_{image}.jsonl"
-logfile.parent.mkdir(exist_ok=True, parents=True)
-
-wait_time = 60
-while True:
-    with jsonlines.open(logfile, mode="a") as writer:
-        resobj = {"size_slug": size_slug, "image": image}
-        try:
-            created, dp = create_node("test_droplet", size_slug=size_slug, image=image)
-            if created:
-                dp.destroy()
-                writer.write(
-                    {
-                        **resobj,
-                        "created": True,
-                        "attempted_at": datetime.now(UTC).isoformat(timespec="seconds"),
-                        "error": None
-                    }
+    wait_time = 60
+    while True:
+        with jsonlines.open(logfile, mode="a") as writer:
+            resobj = {"size_slug": size_slug, "image": image}
+            try:
+                created, dp = create_node(
+                    "test-droplet",
+                    size_slug=size_slug,
+                    image=image,
+                    wait_for_init=False,
                 )
-            else:
+                if created:
+                    dp.destroy()
+                    writer.write(
+                        {
+                            **resobj,
+                            "created": True,
+                            "attempted_at": datetime.now(UTC).isoformat(
+                                timespec="seconds"
+                            ),
+                            "error": None,
+                        }
+                    )
+                else:
+                    writer.write(
+                        {
+                            **resobj,
+                            "created": False,
+                            "attempted_at": datetime.now(UTC).isoformat(
+                                timespec="seconds"
+                            ),
+                            "error": dp,
+                        }
+                    )
+            except Exception as e:
                 writer.write(
                     {
                         **resobj,
                         "created": False,
                         "attempted_at": datetime.now(UTC).isoformat(timespec="seconds"),
-                        "error": dp
+                        "error": str(e),
                     }
                 )
-        except Exception as e:
-            writer.write(
-                {
-                    **resobj,
-                    "created": False,
-                    "attempted_at": datetime.now(UTC).isoformat(timespec="seconds"),
-                    "error": str(e)
-                }
-            )
-    time.sleep(wait_time)
+        time.sleep(wait_time)
+
+
+# %%
+if __name__ == "__main__":
+    typer.run(main)
