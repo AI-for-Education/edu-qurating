@@ -25,7 +25,7 @@ dependencies = [
     "pydantic>=2.11.7",
     "openai>=1.61.1",
     "torch>=2.6.0",
-    "torchvision>=0.23.0",
+    "torchvision",
     "transformers>=4.56.2",
     "numpy>=2.4.1",
     "accelerate>=1.10.1",
