@@ -35,7 +35,7 @@ dependencies = [
     "tiktoken>=0.12.0",
     "huggingface-hub[cli]>=0.35.1",
     "seaborn>=0.13.2",
-    "pandas-gbq>=0.33.0",
+    "pandas-gbq",
     "cloudpathlib[s3,gs,azure]>=0.23.0",
     "pymupdf==1.26.6",
     "pymupdf4llm>=0.2.9",
