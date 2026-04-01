@@ -2,7 +2,7 @@
 import time
 
 import digitalocean
-from digitalocean.baseapi import DataReadError, JSONReadError
+from digitalocean.baseapi import DataReadError, JSONReadError, NotFoundError
 from dotenv import load_dotenv
 
 load_dotenv(override=True)
@@ -44,7 +44,7 @@ while not created_outer:
     errors = {}
     while not created:
         droplet = digitalocean.Droplet(
-            name="test-droplet-8x",
+            name="test-droplet-8x-h200",
             # size_slug="gpu-6000adax1-48gb",
             # size_slug="gpu-h100x1-80gb",
             # size_slug="gpu-h200x1-141gb",
@@ -65,7 +65,7 @@ while not created_outer:
             if region_idx >= len(regions):
                 print(f"{[f'{reg}: {e_}' for reg, e_ in errors.items()]}")
                 break
-        except JSONReadError:
+        except (JSONReadError, NotFoundError):
             continue
     if created:
         created_outer = True
