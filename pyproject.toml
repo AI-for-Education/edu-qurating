@@ -18,7 +18,7 @@ readme = "README.md"
 requires-python = ">=3.11, <3.13"
 dependencies = [
     "anthropic>=0.49.0",
-    "fabdata-llm==0.29.0",
+    # "fabdata-llm==0.29.0",
     "joblib>=1.5.1",
     "matplotlib>=3.10.5",
     "peft>=0.17.1",
@@ -27,7 +27,7 @@ dependencies = [
     "torch>=2.6.0",
     "torchvision",
     "transformers>=4.56.2",
-    "numpy>=2.4.1",
+    "numpy>=2",
     "accelerate>=1.10.1",
     "tqdm>=4.66.5",
     "datasets>=4.1.1",
@@ -62,6 +62,10 @@ dev = [
 ]
 linux-gpu = [
     "flash-attn>=2.8.3; sys_platform=='linux'",
+]
+rl = [
+    "unsloth>=2026.4.4",
+    "vllm>=0.10.2",
 ]
 
 

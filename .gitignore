@@ -182,3 +182,10 @@ checkpoints-preferences
 cloud
 cache
 figures
+unsloth_compiled_cache
+unsloth_training_checkpoints
+outputs
+*_finetune_*
+*_finetune
+*_lora_*
+*_lora
