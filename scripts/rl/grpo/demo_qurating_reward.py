@@ -40,7 +40,7 @@ reward_fun_core_primary = qr_reward.reward_fun_generator(score_spec_core_primary
 reward_fun_fl_primary_teacher = qr_reward.reward_fun_generator(score_spec_fl_primary_teacher)
 
 rng = np.random.default_rng()
-index = rng.permutation(len(test_ds_2))[:10].tolist()
+index = rng.permutation(len(test_ds_2))[:100].tolist()
 completions = [[{"content": row}] for row in test_ds_2[index]["text"]]
 
 reward_core_primary = reward_fun_core_primary(completions)
@@ -51,3 +51,6 @@ for i, completion in enumerate(completions):
     print(reward_core_primary[i])
     print(reward_fl_primary_teacher[i])
     print(f"\n{'#'*50}\n")
+
+# %%
+reward_fun_core_primary([[{"content": "ab " * 1000}]])

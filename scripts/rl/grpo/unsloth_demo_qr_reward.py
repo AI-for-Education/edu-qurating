@@ -1,9 +1,7 @@
 # %%
-import re
-import gc
-
 from unsloth import FastLanguageModel, is_bfloat16_supported
-from trl import GRPOConfig, GRPOTrainer, SFTTrainer, SFTConfig
+from unsloth.chat_templates import get_chat_template
+from trl import GRPOConfig, GRPOTrainer, SFTTrainer, SFTConfig  # type: ignore
 import numpy as np
 import pandas as pd
 from datasets import load_dataset, Dataset
@@ -12,192 +10,42 @@ from transformers import TextStreamer
 from vllm import SamplingParams
 
 from qr_reward import QuratingReward
+from qurating.constants import DATA_DIR
+
+evals_dir = DATA_DIR / "education_evals"
 
 max_seq_length = 2048
 max_prompt_length = 256
 lora_rank = 32
 
 # %%
-reasoning_start = "<start_working_out>"  # Acts as think-open tag
-reasoning_end = "<end_working_out>"  # Acts as think-close tag
-solution_start = "<SOLUTION>"
-solution_end = "</SOLUTION>"
+# load qurating reward functions
+qr_reward = QuratingReward()
 
-system_prompt = f"""You are given a problem.
-Think about the problem and provide your working out.
-Place it between {reasoning_start} and {reasoning_end}.
-Then, provide your solution between {solution_start}{solution_end}"""
+score_spec_core_primary = {
+    "core_ed": {
+        "pedagogical_structure": 1,
+        "lesson_engagement": 0.25,
+        "factual_accuracy": 1,
+        "education_level_primary": 1,
+    }
+}
 
-print(system_prompt)
+score_spec_fl_teacher = {
+    **{"fl_teacher": {label: 1 for label in qr_reward.labels["fl_teacher"]}}
+}
 
-chat_template = (
-    "{% if messages[0]['role'] == 'system' %}"
-    "{{ messages[0]['content'] + eos_token }}"
-    "{% set loop_messages = messages[1:] %}"
-    "{% else %}"
-    "{{ '{system_prompt}' + eos_token }}"
-    "{% set loop_messages = messages %}"
-    "{% endif %}"
-    "{% for message in loop_messages %}"
-    "{% if message['role'] == 'user' %}"
-    "{{ message['content'] }}"
-    "{% elif message['role'] == 'assistant' %}"
-    "{{ message['content'] + eos_token }}"
-    "{% endif %}"
-    "{% endfor %}"
-    "{% if add_generation_prompt %}{{ '{reasoning_start}' }}"
-    "{% endif %}"
-)
-
-chat_template = chat_template.replace(
-    "'{system_prompt}'", f"'{system_prompt}'"
-).replace("'{reasoning_start}'", f"'{reasoning_start}'")
-
+reward_fun_core_primary = qr_reward.reward_fun_generator(score_spec_core_primary)
+reward_fun_fl_teacher = qr_reward.reward_fun_generator(score_spec_fl_teacher)
 
 # %%
-def format_dataset(x):
-    expected_answer = x["expected_answer"]
-    problem = x["problem"]
+system_prompt = """You are an early grade primary teacher given a task to follow."""
 
-    # Remove generated think tags
-    thoughts = x["generated_solution"]
-    thoughts = thoughts.replace("<think>", "").replace("</think>", "")
-
-    # Strip newlines on left and right
-    thoughts = thoughts.strip()
-    # Add our custom formatting
-    final_prompt = (
-        reasoning_start
-        + thoughts
-        + reasoning_end
-        + solution_start
-        + expected_answer
-        + solution_end
-    )
-    return [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": problem},
-        {"role": "assistant", "content": final_prompt},
-    ]
-
-
-def extract_hash_answer(text):
-    # if "####" not in text: return None
-    # return text.split("####")[1].strip()
-    return text
-
-
-# # Reward functions
-def match_format_exactly(completions, **kwargs):
-    scores = []
-    for completion in completions:
-        score = 0
-        response = completion[0]["content"]
-        # Match if format is seen exactly!
-        if match_format.search(response) is not None:
-            score += 3.0
-        scores.append(score)
-    return scores
-
-
-def match_format_approximately(completions, **kwargs):
-    scores = []
-    for completion in completions:
-        score = 0
-        response = completion[0]["content"]
-        # Count how many keywords are seen - we penalize if too many!
-        # If we see 1, then plus some points!
-
-        # No need to reward the opening tag since we always prepend it!
-        # score += 0.5 if response.count(reasoning_start) == 1 else -1.0
-        score += 0.5 if response.count(reasoning_end) == 1 else -1.0
-        score += 0.5 if response.count(solution_start) == 1 else -1.0
-        score += 0.5 if response.count(solution_end) == 1 else -1.0
-        scores.append(score)
-    return scores
-
-
-def check_answer(prompts, completions, answer, **kwargs):
-    question = prompts[0][-1]["content"]
-    responses = [completion[0]["content"] for completion in completions]
-
-    extracted_responses = [
-        guess.group(1) if (guess := match_format.search(r)) is not None else None
-        for r in responses
-    ]
-
-    scores = []
-    for guess, true_answer in zip(extracted_responses, answer):
-        score = 0
-        if guess is None:
-            scores.append(-2.0)
-            continue
-        # Correct answer gets 5 points!
-        if guess == true_answer:
-            score += 5.0
-        # Match if spaces are seen, but less reward
-        elif guess.strip() == true_answer.strip():
-            score += 3.5
-        else:
-            # We also reward it if the answer is close via ratios!
-            # Ie if the answer is within some range, reward it!
-            try:
-                ratio = float(guess) / float(true_answer)
-                if ratio >= 0.9 and ratio <= 1.1:
-                    score += 2.0
-                elif ratio >= 0.8 and ratio <= 1.2:
-                    score += 1.5
-                else:
-                    score -= 2.5  # Penalize wrong answers
-            except:
-                score -= 4.5  # Penalize
-        scores.append(score)
-    return scores
-
-
-global PRINTED_TIMES
-PRINTED_TIMES = 0
-global PRINT_EVERY_STEPS
-PRINT_EVERY_STEPS = 5
-
-
-def check_numbers(prompts, completions, answer, **kwargs):
-    question = prompts[0][-1]["content"]
-    responses = [completion[0]["content"] for completion in completions]
-
-    extracted_responses = [
-        guess.group(1) if (guess := match_numbers.search(r)) is not None else None
-        for r in responses
-    ]
-
-    scores = []
-    # Print only every few steps
-    global PRINTED_TIMES
-    global PRINT_EVERY_STEPS
-    if PRINTED_TIMES % PRINT_EVERY_STEPS == 0:
-        print(
-            "*" * 20 + f"Question:\n{question}",
-            f"\nAnswer:\n{answer[0]}",
-            f"\nResponse:\n{responses[0]}",
-            f"\nExtracted:\n{extracted_responses[0]}",
-        )
-    PRINTED_TIMES += 1
-
-    for guess, true_answer in zip(extracted_responses, answer):
-        if guess is None:
-            scores.append(-2.5)
-            continue
-        # Convert to numbers
-        try:
-            true_answer = float(true_answer.strip())
-            # Remove commas like in 123,456
-            guess = float(guess.strip().replace(",", ""))
-            scores.append(3.5 if guess == true_answer else -1.5)
-        except:
-            scores.append(0)
-            continue
-    return scores
-
+# %%
+dataset = Dataset.load_from_disk(
+    str(evals_dir / "education_evals_combined_literacy_grade0-3.parquet")
+)
+dataset
 
 # %%
 model, tokenizer = FastLanguageModel.from_pretrained(
@@ -206,9 +54,9 @@ model, tokenizer = FastLanguageModel.from_pretrained(
     load_in_4bit=False,  # False for LoRA 16bit
     fast_inference=True,  # Enable vllm fast inference
     max_lora_rank=lora_rank,
-    gpu_memory_utilization=0.9,  # Reduce if out of memory
+    gpu_memory_utilization=0.8,  # Reduce if out of memory
 )
-tokenizer.chat_template = chat_template
+tokenizer = get_chat_template(tokenizer, chat_template="qwen-3")
 
 model = FastLanguageModel.get_peft_model(
     model,
@@ -229,137 +77,32 @@ model = FastLanguageModel.get_peft_model(
 
 tokenizer.apply_chat_template(
     [
-        {"role": "user", "content": "What is 1+1?"},
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": dataset[0]["Rendered Prompt"]},
         {
             "role": "assistant",
-            "content": f"{reasoning_start}I think it's 2.{reasoning_end}{solution_start}2{solution_end}",
+            "content": dataset[0]["Good Response"],
         },
-        {"role": "user", "content": "What is 2+2?"},
     ],
     tokenize=False,
     add_generation_prompt=True,
 )
-# %%
-dataset = load_dataset("unsloth/OpenMathReasoning-mini", split="cot")
-dataset = dataset.to_pandas()[["expected_answer", "problem", "generated_solution"]]
-
-# Try converting to number - if not, replace with NaN
-is_number = pd.to_numeric(
-    pd.Series(dataset["expected_answer"]), errors="coerce"
-).notnull()
-# Select only numbers
-dataset = dataset.iloc[np.where(is_number)[0]]
-
-dataset["Messages"] = dataset.apply(format_dataset, axis=1)
-
-tokenizer.apply_chat_template(dataset["Messages"][0], tokenize=False)
-
-# %%
-dataset["N"] = dataset["Messages"].apply(
-    lambda x: len(tokenizer.apply_chat_template(x))
-)
-
-dataset = dataset.loc[dataset["N"] <= max_seq_length / 2].copy()
-dataset.shape
-
-# %%
-dataset["text"] = tokenizer.apply_chat_template(
-    dataset["Messages"].values.tolist(), tokenize=False
-)
-dataset = Dataset.from_pandas(dataset)
-dataset
-
-# %%
-trainer = SFTTrainer(
-    model=model,
-    tokenizer=tokenizer,
-    train_dataset=dataset,
-    args=SFTConfig(
-        dataset_text_field="text",
-        per_device_train_batch_size=1,
-        gradient_accumulation_steps=1,  # Use GA to mimic batch size!
-        warmup_steps=5,
-        num_train_epochs=2,  # Set this for 1 full training run.
-        learning_rate=2e-4,  # Reduce to 2e-5 for long training runs
-        logging_steps=5,
-        optim="adamw_8bit",
-        weight_decay=0.001,
-        lr_scheduler_type="linear",
-        seed=3407,
-        report_to="none",  # Use TrackIO/WandB etc
-    ),
-)
-
-trainer.train()
-
-# %%
-text = tokenizer.apply_chat_template(
-    dataset[0]["Messages"][:2],
-    tokenize=False,
-    add_generation_prompt=True,  # Must add for generation
-)
-
-_ = model.generate(
-    **tokenizer(text, return_tensors="pt").to("cuda"),
-    temperature=0,
-    max_new_tokens=1024,
-    streamer=TextStreamer(tokenizer, skip_prompt=False),
-)
-
-del dataset
-torch.cuda.empty_cache()
-gc.collect()
-
-# %%
-dataset = load_dataset("open-r1/DAPO-Math-17k-Processed", "en", split="train")
-dataset
 
 # %%
 dataset = dataset.map(
     lambda x: {
         "prompt": [
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": x["prompt"]},
-        ],
-        "answer": extract_hash_answer(x["solution"]),
+            {"role": "user", "content": x["Rendered Prompt"]},
+        ]
     }
 )
 dataset[0]
 
-# %%
-# Add optional EOS token matching
-solution_end_regex = (
-    r"</SOLUTION>[\s]{0,}" + "(?:" + re.escape(tokenizer.eos_token) + ")?"
+reward_fun_core_primary(
+    prompts=[[{"content": ""}]],
+    completions=[[{"role": "assistant", "content": "ab " * 1000}]],
 )
-
-match_format = re.compile(
-    rf"{reasoning_end}.*?"
-    rf"{solution_start}(.+?){solution_end_regex}"
-    rf"[\s]{{0,}}$",
-    flags=re.MULTILINE | re.DOTALL,
-)
-
-print(
-    match_format.findall(
-        "Let me think!<end_working_out>" f"<SOLUTION>\n2\n</SOLUTION>",
-    )
-)
-
-print(
-    match_format.findall(
-        "<start_working_out>Let me think!<end_working_out>"
-        f"<SOLUTION>  2  </SOLUTION>\n\n",
-    )
-)
-
-########
-match_numbers = re.compile(
-    solution_start + r".*?[\s]{0,}([-]?[\d\.\,]{1,})", flags=re.MULTILINE | re.DOTALL
-)
-print(match_numbers.findall("<SOLUTION>  0.34  </SOLUTION>"))
-print(match_numbers.findall("<SOLUTION>  123,456  </SOLUTION>"))
-print(match_numbers.findall("<SOLUTION>  -0.234  </SOLUTION>"))
-print(match_numbers.findall("<SOLUTION>17</SOLUTION>"))
 
 # %%
 tokenized = dataset.map(
@@ -376,9 +119,9 @@ tokenized = tokenized.map(lambda x: {"L": len(x["tokens"])})
 maximum_length = int(np.quantile(tokenized["L"], 0.9))
 print("Max Length = ", maximum_length)
 
-# Filter only samples smaller than 90% max length
-dataset = dataset.select(np.where(np.array(tokenized["L"]) <= maximum_length)[0])
-del tokenized
+# # Filter only samples smaller than 90% max length
+# dataset = dataset.select(np.where(np.array(tokenized["L"]) <= maximum_length)[0])
+# del tokenized
 
 # %%
 max_prompt_length = maximum_length + 1  # + 1 just in case!
@@ -402,7 +145,7 @@ training_args = GRPOConfig(
     lr_scheduler_type="linear",
     optim="adamw_8bit",
     logging_steps=1,
-    per_device_train_batch_size=12,
+    per_device_train_batch_size=4,
     gradient_accumulation_steps=1,  # Increase to 4 for smoother training
     num_generations=4,  # Decrease if out of memory
     max_prompt_length=max_prompt_length,
@@ -427,10 +170,8 @@ trainer = GRPOTrainer(
     model=model,
     processing_class=tokenizer,
     reward_funcs=[
-        match_format_exactly,
-        match_format_approximately,
-        check_answer,
-        check_numbers,
+        reward_fun_core_primary,
+        reward_fun_fl_teacher,
     ],  # type: ignore
     args=training_args,
     train_dataset=dataset,

@@ -1,15 +1,23 @@
 from pathlib import Path
+import json
 
 import numpy as np
 from datasets import Dataset
+import requests
 
 from qurating.constants import RESULTS_DIR, ROOT
 from qurating.inference import ModelAnnotator, TokenizeAndChunk
 
 
 class QuratingReward:
-    def __init__(self, annotator_batch_size: int = 500, text_field: str = "text"):
+    def __init__(
+        self,
+        annotator_batch_size: int = 500,
+        text_field: str = "text",
+        endpoint: str | None = "http://localhost:8000/score",
+    ):
         self._text_field = text_field
+        self.endpoint = endpoint
         self.dataset_files = {
             "core_ed": (
                 RESULTS_DIR
@@ -39,45 +47,53 @@ class QuratingReward:
             for model_type, dataset_file in self.dataset_files.items()
         }
 
-        self.models = {
-            "core_ed": "AI-for-Education/qurater_gemma-3-4b-pt_ds-ours_v2-200000",
-            "fl_student": str(
-                ROOT
-                / "checkpoints-preferences"
-                / "qurater_gemma-3-4b-pt_bsz512_lr5e-5_epochs2_warmup0.1_conf0.5_labeltemp1.0_ds-fwe-fortified_sampled-primary-5-pedagogical-5-FLN_student-facing-500000-200000-512-274634520-gpt-4.1-mini-logprobs"
-                / "checkpoint-340"
-            ),
-            "fl_teacher": str(
-                ROOT
-                / "checkpoints-preferences"
-                / "qurater_gemma-3-4b-pt_bsz512_lr5e-5_epochs2_warmup0.1_conf0.5_labeltemp1.0_ds-fwe-fortified_sampled-pedagogical-5-FLN_teacher-facing-500000-200000-512-274634520-gpt-4.1-mini-logprobs"
-                / "checkpoint-312"
-            ),
-        }
-        assert set(self.models) == set(self.dataset_files)
+        if self.endpoint is None:
+            self.models = {
+                "core_ed": "AI-for-Education/qurater_gemma-3-4b-pt_ds-ours_v2-200000",
+                "fl_student": str(
+                    ROOT
+                    / "checkpoints-preferences"
+                    / "qurater_gemma-3-4b-pt_bsz512_lr5e-5_epochs2_warmup0.1_conf0.5_labeltemp1.0_ds-fwe-fortified_sampled-primary-5-pedagogical-5-FLN_student-facing-500000-200000-512-274634520-gpt-4.1-mini-logprobs"
+                    / "checkpoint-340"
+                ),
+                "fl_teacher": str(
+                    ROOT
+                    / "checkpoints-preferences"
+                    / "qurater_gemma-3-4b-pt_bsz512_lr5e-5_epochs2_warmup0.1_conf0.5_labeltemp1.0_ds-fwe-fortified_sampled-pedagogical-5-FLN_teacher-facing-500000-200000-512-274634520-gpt-4.1-mini-logprobs"
+                    / "checkpoint-312"
+                ),
+            }
+            assert set(self.models) == set(self.dataset_files)
 
-        self.annotator_batch_size = annotator_batch_size
+            self.annotator_batch_size = annotator_batch_size
 
-        self.annotators = {
-            model_type: ModelAnnotator(
-                str(model), self.labels[model_type], self.annotator_batch_size
-            )
-            for model_type, model in self.models.items()
-        }
+            self.annotators = {
+                model_type: ModelAnnotator(
+                    str(model), self.labels[model_type], self.annotator_batch_size
+                )
+                for model_type, model in self.models.items()
+            }
 
-        self.tokenizers = {
-            model_type: TokenizeAndChunk(str(model), text_field, 512)
-            for model_type, model in self.models.items()
-        }
+            self.tokenizers = {
+                model_type: TokenizeAndChunk(str(model), text_field, 512)
+                for model_type, model in self.models.items()
+            }
 
     def reward_fun_generator(self, score_spec):
-        def reward_fun(completions, **kwargs):
-            return self.reward(completions, score_spec)
+        def reward_fun(prompts, completions, **kwargs):
+            return self.reward(prompts, completions, score_spec)
 
         return reward_fun
 
-    def reward(self, completions, score_spec):
+    def reward(
+        self,
+        prompts: list[list[dict[str, str]]],
+        completions: list[list[dict[str, str]]],
+        score_spec: dict[str, dict[str, float | int]],
+    ):
         responses = [completion[0]["content"] for completion in completions]
+        q = prompts[0][-1]["content"]
+        print("-" * 20, f"Question:\n{q}", f"\nResponse:\n{responses[0]}")
         ds = Dataset.from_list([{"text": resp} for resp in responses])
         scores = self.score(ds, model_types=list(score_spec))
         score_holders = []
@@ -100,22 +116,36 @@ class QuratingReward:
         return results
 
     def _score_model(self, dataset: Dataset, model_type: str):
-        annotator, tokenizer = self.annotators[model_type], self.tokenizers[model_type]
-        processed_ds = dataset.map(
-            tokenizer,
-            batched=True,
-            remove_columns=["text"],
-            batch_size=4000,
-            load_from_cache_file=True,
-        )
-        results = processed_ds.map(
-            annotator,
-            batched=True,
-            with_indices=True,
-            batch_size=self.annotator_batch_size,
-            remove_columns=[col for col in processed_ds.column_names],
-            load_from_cache_file=True,
-        )
+        if self.endpoint is None:
+            annotator, tokenizer = (
+                self.annotators[model_type],
+                self.tokenizers[model_type],
+            )
+            processed_ds = dataset.map(
+                tokenizer,
+                batched=True,
+                remove_columns=[self.text_field],
+                batch_size=4000,
+                load_from_cache_file=True,
+            )
+            results = processed_ds.map(
+                annotator,
+                batched=True,
+                with_indices=True,
+                batch_size=self.annotator_batch_size,
+                remove_columns=[col for col in processed_ds.column_names],
+                load_from_cache_file=True,
+            )
+        else:
+            ds_dict = dataset.to_dict()
+            assert isinstance(ds_dict, dict)
+            body = {
+                "texts": ds_dict[self.text_field],
+                "model_type": model_type,
+            }
+            response = requests.post(self.endpoint, json=body)
+            assert response.status_code == 200
+            results = json.loads(response.content.decode("utf-8"))["scores"]
         return results
 
     @property

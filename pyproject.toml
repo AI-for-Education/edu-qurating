@@ -64,6 +64,7 @@ linux-gpu = [
     "flash-attn>=2.8.3; sys_platform=='linux'",
 ]
 rl = [
+    "fastapi>=0.135.3",
     "unsloth>=2026.4.4",
     "vllm>=0.10.2",
 ]

@@ -1316,6 +1316,7 @@ linux-gpu = [
     { name = "flash-attn", marker = "sys_platform == 'linux'" },
 ]
 rl = [
+    { name = "fastapi" },
     { name = "unsloth" },
     { name = "vllm" },
 ]
@@ -1365,6 +1366,7 @@ dev = [
 ]
 linux-gpu = [{ name = "flash-attn", marker = "sys_platform == 'linux'", specifier = ">=2.8.3" }]
 rl = [
+    { name = "fastapi", specifier = ">=0.135.3" },
     { name = "unsloth", specifier = ">=2026.4.4" },
     { name = "vllm", specifier = ">=0.10.2" },
 ]
