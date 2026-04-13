@@ -1,13 +1,11 @@
 # %%
-from unsloth import FastLanguageModel, is_bfloat16_supported
+from unsloth import FastLanguageModel
 from unsloth.chat_templates import get_chat_template
-from trl import GRPOConfig, GRPOTrainer, SFTTrainer, SFTConfig  # type: ignore
+from trl import GRPOConfig, GRPOTrainer  # type: ignore
 import numpy as np
-import pandas as pd
-from datasets import load_dataset, Dataset
-import torch
-from transformers import TextStreamer
+from datasets import Dataset
 from vllm import SamplingParams
+from safetensors import safe_open
 
 from qr_reward import QuratingReward
 from qurating.constants import DATA_DIR
@@ -24,10 +22,10 @@ qr_reward = QuratingReward()
 
 score_spec_core_primary = {
     "core_ed": {
-        "pedagogical_structure": 1,
+        "pedagogical_structure": 0.1,
         "lesson_engagement": 0.25,
         "factual_accuracy": 1,
-        "education_level_primary": 1,
+        # "education_level_primary": 0.25,
     }
 }
 
@@ -38,12 +36,22 @@ score_spec_fl_teacher = {
 reward_fun_core_primary = qr_reward.reward_fun_generator(score_spec_core_primary)
 reward_fun_fl_teacher = qr_reward.reward_fun_generator(score_spec_fl_teacher)
 
+
+def length_target(completions, **kwargs):
+    assert "Good Response" in kwargs
+    resp_len = np.array([len(completion[0]["content"]) for completion in completions])
+    good_len = np.array([len(gr) for gr in kwargs["Good Response"]])
+    max_len = max_seq_length
+    len_score = 5 * (1 - np.abs(resp_len - good_len) / max_len) ** 0.5
+    return len_score.tolist()
+
+
 # %%
-system_prompt = """You are an early grade primary teacher given a task to follow."""
+system_prompt = """/flteacher"""
 
 # %%
 dataset = Dataset.load_from_disk(
-    str(evals_dir / "education_evals_combined_literacy_grade0-3.parquet")
+    str(evals_dir / "education_evals_combined_literacy_grade0-3_train.parquet")
 )
 dataset
 
@@ -154,7 +162,7 @@ training_args = GRPOConfig(
     max_steps=2000,
     save_steps=100,
     report_to="none",  # Can use Weights & Biases
-    output_dir="outputs",
+    output_dir="test4/outputs",
     # For optional training + evaluation
     # fp16_full_eval = True,
     # per_device_eval_batch_size = 4,
@@ -172,7 +180,8 @@ trainer = GRPOTrainer(
     reward_funcs=[
         reward_fun_core_primary,
         reward_fun_fl_teacher,
-    ],  # type: ignore
+        length_target,  # type: ignore
+    ],
     args=training_args,
     train_dataset=dataset,
     # For optional training + evaluation
@@ -182,13 +191,11 @@ trainer = GRPOTrainer(
 trainer.train()
 
 # %%
-model.save_lora("grpo_saved_lora")
+model.save_lora("test4/grpo_saved_lora")
 
 # %%
-from safetensors import safe_open
-
 tensors = {}
-with safe_open("grpo_saved_lora/adapter_model.safetensors", framework="pt") as f:
+with safe_open("test4/grpo_saved_lora/adapter_model.safetensors", framework="pt") as f:
     # Verify both A and B are non zero
     for key in f.keys():
         tensor = f.get_tensor(key)
@@ -196,9 +203,19 @@ with safe_open("grpo_saved_lora/adapter_model.safetensors", framework="pt") as f
         assert n_zeros.item() != tensor.numel()
 
 # %%
+test_ds = Dataset.load_from_disk(
+    str(evals_dir / "education_evals_combined_literacy_grade0-3_test.parquet")
+)
+test_ds
+
+prompts = list(test_ds["Rendered Prompt"])
+promptiter = iter(prompts)
+
+# %%
+prompt = next(promptiter)
 messages = [
     {"role": "system", "content": system_prompt},
-    {"role": "user", "content": "What is the sqrt of 101?"},
+    {"role": "user", "content": prompt},
 ]
 
 text = tokenizer.apply_chat_template(
@@ -216,18 +233,21 @@ output = (
     model.fast_generate(
         text,
         sampling_params=sampling_params,
-        lora_request=model.load_lora("grpo_saved_lora"),
+        lora_request=model.load_lora("test4/grpo_saved_lora"),
     )[0]
     .outputs[0]
     .text
 )
 
-output
+print(prompt)
+print("-" * 50)
+print(output)
+print("#" * 50)
 
 # %%
 # Merge to 16bit
 model.save_pretrained_merged(
-    "qwen_finetune_16bit",
+    "test4/qwen_finetune_16bit",
     tokenizer,
     save_method="merged_16bit",
 )
@@ -236,8 +256,8 @@ model.save_pretrained_merged(
 # model.save_pretrained_merged("qwen_finetune_4bit", tokenizer, save_method = "merged_4bit",)
 
 # Just LoRA adapters
-model.save_pretrained("qwen_lora")
-tokenizer.save_pretrained("qwen_lora")
+model.save_pretrained("test4/qwen_lora")
+tokenizer.save_pretrained("test4/qwen_lora")
 
-model.save_pretrained_gguf("qwen_finetune", tokenizer, quantization_method="f16")
-model.save_pretrained_gguf("qwen_finetune", tokenizer, quantization_method="bf16")
+model.save_pretrained_gguf("test4/qwen_finetune", tokenizer, quantization_method="f16")
+model.save_pretrained_gguf("test4/qwen_finetune", tokenizer, quantization_method="bf16")

@@ -14,8 +14,10 @@ timestamp_rec = re.compile(timestamp_req)
 
 # %%
 evals_dir = DATA_DIR / "education_evals"
+train_dir = evals_dir / "train"
+eval_dir = evals_dir / "eval"
 
-filelist = sorted(evals_dir.glob("* Raw.xlsx"))
+filelist = sorted(evals_dir.rglob("* Raw.xlsx"))
 
 timestamps = defaultdict(list)
 df_dict = defaultdict(list)
@@ -28,11 +30,17 @@ for fl in filelist:
     df = pd.read_excel(fl)
     df["task_name"] = task_name
     df["date_time"] = date_time
+    if fl.parent == train_dir:
+        df["split"] = "train"
+    else:
+        df["split"] = "test"
     df_dict[task_name].append(df)
 
 full_df = pd.concat(
     [df for dflist in df_dict.values() for df in dflist], axis=0, ignore_index=True
 )
+isnumgrade = full_df["Grade"].apply(lambda x: isinstance(x, int))
+full_df = full_df.loc[isnumgrade]
 
 filters = [
     "Subject == 'Literacy'",
@@ -60,6 +68,7 @@ usecols = [
     "Good Response",
     "Okay Response",
     "Bad Response",
+    "split",
 ]
 
 for row in json.loads(filt_df[usecols].to_json(orient="records")):
@@ -67,11 +76,16 @@ for row in json.loads(filt_df[usecols].to_json(orient="records")):
     print(f"#" * 50)
 
 # %%
+train_df = filt_df.query("split == 'train'")
 seed = 957346
 rng = np.random.default_rng(seed=seed)
 
-nrows = len(filt_df)
+nrows = len(train_df)
 sampidx = rng.choice(nrows, size=nrows * 10, replace=True)
 
-filt_ds = Dataset.from_pandas(filt_df[usecols].iloc[sampidx].reset_index())
-filt_ds.save_to_disk(evals_dir / "education_evals_combined_literacy_grade0-3.parquet")
+train_ds = Dataset.from_pandas(train_df[usecols].iloc[sampidx].reset_index())
+train_ds.save_to_disk(evals_dir / "education_evals_combined_literacy_grade0-3_train.parquet")
+
+test_df = filt_df.query("split == 'test'")
+test_ds = Dataset.from_pandas(test_df[usecols].reset_index())
+test_ds.save_to_disk(evals_dir / "education_evals_combined_literacy_grade0-3_test.parquet")
