@@ -201,9 +201,6 @@ trainer = GRPOTrainer(
 )
 
 # %%
-test_trainer_state(trainer, test_promptiter, checkpoint=None)#"test3/outputs/checkpoint-100")
-
-# %%
 trainer.train()
 
 # %%
@@ -219,7 +216,7 @@ with safe_open("test5/grpo_saved_lora/adapter_model.safetensors", framework="pt"
         assert n_zeros.item() != tensor.numel()
 
 # %%
-prompt = next(promptiter)
+prompt = next(test_promptiter)
 messages = [
     {"role": "system", "content": system_prompt},
     {"role": "user", "content": prompt},
