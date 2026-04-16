@@ -6,6 +6,8 @@ import numpy as np
 from datasets import Dataset
 from vllm import SamplingParams
 from safetensors import safe_open
+from transformers import TextStreamer
+from transformers.models.qwen3.modeling_qwen3 import Qwen3ForCausalLM
 
 from qr_reward import QuratingReward
 from qurating.constants import DATA_DIR
@@ -30,7 +32,7 @@ score_spec_core_primary = {
 }
 
 score_spec_fl_teacher = {
-    **{"fl_teacher": {label: 1 for label in qr_reward.labels["fl_teacher"]}}
+    **{"fl_teacher": {"2_phonological_awareness": 1}}
 }
 
 reward_fun_core_primary = qr_reward.reward_fun_generator(score_spec_core_primary)
@@ -54,6 +56,15 @@ dataset = Dataset.load_from_disk(
     str(evals_dir / "education_evals_combined_literacy_grade0-3_train.parquet")
 )
 dataset
+
+# %%
+test_ds = Dataset.load_from_disk(
+    str(evals_dir / "education_evals_combined_literacy_grade0-3_test.parquet")
+)
+test_ds
+
+prompts = list(test_ds["Rendered Prompt"])
+test_promptiter = iter(prompts)
 
 # %%
 model, tokenizer = FastLanguageModel.from_pretrained(
@@ -162,7 +173,7 @@ training_args = GRPOConfig(
     max_steps=2000,
     save_steps=100,
     report_to="none",  # Can use Weights & Biases
-    output_dir="test4/outputs",
+    output_dir="test5/outputs",
     # For optional training + evaluation
     # fp16_full_eval = True,
     # per_device_eval_batch_size = 4,
@@ -188,28 +199,24 @@ trainer = GRPOTrainer(
     # train_dataset = new_dataset["train"],
     # eval_dataset = new_dataset["test"],
 )
+
+# %%
+test_trainer_state(trainer, test_promptiter, checkpoint=None)#"test3/outputs/checkpoint-100")
+
+# %%
 trainer.train()
 
 # %%
-model.save_lora("test4/grpo_saved_lora")
+model.save_lora("test5/grpo_saved_lora")
 
 # %%
 tensors = {}
-with safe_open("test4/grpo_saved_lora/adapter_model.safetensors", framework="pt") as f:
+with safe_open("test5/grpo_saved_lora/adapter_model.safetensors", framework="pt") as f:
     # Verify both A and B are non zero
     for key in f.keys():
         tensor = f.get_tensor(key)
         n_zeros = (tensor == 0).sum() / tensor.numel()
         assert n_zeros.item() != tensor.numel()
-
-# %%
-test_ds = Dataset.load_from_disk(
-    str(evals_dir / "education_evals_combined_literacy_grade0-3_test.parquet")
-)
-test_ds
-
-prompts = list(test_ds["Rendered Prompt"])
-promptiter = iter(prompts)
 
 # %%
 prompt = next(promptiter)
@@ -233,7 +240,7 @@ output = (
     model.fast_generate(
         text,
         sampling_params=sampling_params,
-        lora_request=model.load_lora("test4/grpo_saved_lora"),
+        lora_request=model.load_lora("test5/grpo_saved_lora"),
     )[0]
     .outputs[0]
     .text
@@ -247,7 +254,7 @@ print("#" * 50)
 # %%
 # Merge to 16bit
 model.save_pretrained_merged(
-    "test4/qwen_finetune_16bit",
+    "test5/qwen_finetune_16bit",
     tokenizer,
     save_method="merged_16bit",
 )
@@ -256,8 +263,8 @@ model.save_pretrained_merged(
 # model.save_pretrained_merged("qwen_finetune_4bit", tokenizer, save_method = "merged_4bit",)
 
 # Just LoRA adapters
-model.save_pretrained("test4/qwen_lora")
-tokenizer.save_pretrained("test4/qwen_lora")
+model.save_pretrained("test5/qwen_lora")
+tokenizer.save_pretrained("test5/qwen_lora")
 
-model.save_pretrained_gguf("test4/qwen_finetune", tokenizer, quantization_method="f16")
-model.save_pretrained_gguf("test4/qwen_finetune", tokenizer, quantization_method="bf16")
+model.save_pretrained_gguf("test5/qwen_finetune", tokenizer, quantization_method="f16")
+model.save_pretrained_gguf("test5/qwen_finetune", tokenizer, quantization_method="bf16")

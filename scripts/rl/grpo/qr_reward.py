@@ -1,5 +1,7 @@
 from pathlib import Path
 import json
+import re
+import copy
 
 import numpy as np
 from datasets import Dataset
@@ -79,9 +81,36 @@ class QuratingReward:
                 for model_type, model in self.models.items()
             }
 
-    def reward_fun_generator(self, score_spec):
+    def reward_fun_generator(
+        self,
+        score_spec,
+        grouper: re.Pattern | None = None,
+        group_idx: int | None = None,
+        verbose: bool = False,
+    ):
+        if grouper is not None and group_idx is None:
+            raise ValueError("Must provide group_idx if grouper is provided")
+
         def reward_fun(prompts, completions, **kwargs):
-            return self.reward(prompts, completions, score_spec)
+            if verbose:
+                responses = [completion[0]["content"] for completion in completions]
+                q = prompts[0][-1]["content"]
+                print("-" * 20, f"Question:\n{q}", f"\nResponse:\n{responses[0]}")
+            if grouper is not None and group_idx is not None:
+                use_completions = []
+                for completion in completions:
+                    # we don't apply the reward if the formatting isn't correct
+                    # (empty string will lead to zero reward)
+                    use_completions.append([{"content": ""}])
+                    match = grouper.match(completion[0]["content"])
+                    if match is not None:
+                        groups = match.groups()
+                        if len(groups) > group_idx:
+                            use_completions[-1][0]["content"] = groups[group_idx]
+            else:
+                use_completions = completions
+
+            return self.reward(prompts, use_completions, score_spec)
 
         return reward_fun
 
@@ -92,15 +121,14 @@ class QuratingReward:
         score_spec: dict[str, dict[str, float | int]],
     ):
         responses = [completion[0]["content"] for completion in completions]
-        q = prompts[0][-1]["content"]
-        print("-" * 20, f"Question:\n{q}", f"\nResponse:\n{responses[0]}")
         ds = Dataset.from_list([{"text": resp} for resp in responses])
         scores = self.score(ds, model_types=list(score_spec))
         score_holders = []
         for model_type, weight_dict in score_spec.items():
             for label, weight in weight_dict.items():
                 score_holders.append(
-                    np.array(scores[model_type][f"{label}_average"]) * weight
+                    np.minimum(np.array(scores[model_type][f"{label}_average"]), 12)
+                    * weight
                 )
         scores_arr = np.mean(score_holders, axis=0)
         return scores_arr.tolist()
@@ -143,9 +171,30 @@ class QuratingReward:
                 "texts": ds_dict[self.text_field],
                 "model_type": model_type,
             }
+            # handle empty strings (will raise error when trying to score)
+            # first identify them, then remove them
+            # their score will be reinserted as zero at the end
+            not_empty_idx = [i for i, text in enumerate(body["texts"]) if len(text) > 0]
+            if len(not_empty_idx) < len(dataset):
+                body["texts"] = [
+                    text for i, text in enumerate(body["texts"]) if i in not_empty_idx
+                ]
             response = requests.post(self.endpoint, json=body)
             assert response.status_code == 200
             results = json.loads(response.content.decode("utf-8"))["scores"]
+            # insert zero scores for empty strings (if there are any)
+            if len(not_empty_idx) < len(dataset):
+                filled_results = {}
+                for key, scores in results.items():
+                    # only take average scores
+                    # (chunk scores are ignorted later and cause numpy error here due to being lists of lists)
+                    if key.endswith("_average"):
+                        empty_holder = np.zeros(len(dataset))
+                        ## if all are empty then don't try to set, just keep all zeros
+                        if not_empty_idx:
+                            empty_holder[not_empty_idx] = scores
+                        filled_results[key] = empty_holder.tolist()
+                results = filled_results
         return results
 
     @property

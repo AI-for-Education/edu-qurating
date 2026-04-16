@@ -63,5 +63,22 @@ sudo apt install cmake libssl-dev libcurl4-openssl-dev
     - length_target
         - reward length that matches good example
 
-### test 5
-- want to test with reasoning here
+### test5
+- model
+    - qwen3-4b-base
+- reward
+    - core_ed:
+        - pedagogical_structure: 1
+        - lesson_engagement: 0.25
+        - factual_accuracy: 1
+    - fl_teacher:
+        - phonological_awareness: 1
+    - length_target
+        - reward length that matches good example
+- the idea of this one is to test a single dimension of FL by itself
+
+### reasoning/test1
+- model
+    - qwen3-4b-base
+- reward
+    
