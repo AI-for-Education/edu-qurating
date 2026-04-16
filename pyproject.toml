@@ -50,6 +50,7 @@ dependencies = [
     "typer>=0.19.2",
     "tenacity>=9.1.2",
     "jsonlines>=4.0.0",
+    "s5cmd>=0.3.3",
 ]
 
 

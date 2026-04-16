@@ -3,12 +3,13 @@ import gc
 from pathlib import Path
 import re
 
+import jsonlines
 import pandas as pd
 import torch
 from unsloth import FastLanguageModel
 from unsloth.chat_templates import get_chat_template
 from datasets import Dataset
-from transformers import AutoTokenizer
+from vllm import SamplingParams
 
 from qurating.constants import DATA_DIR
 
@@ -18,7 +19,7 @@ evals_dir = DATA_DIR / "education_evals"
 
 max_seq_length = 2048
 max_prompt_length = 256
-lora_rank = 32
+lora_rank = 128
 
 qwen3_response_formatter = re.compile(
     r"(.+?)<|endoftext|>.*", flags=re.DOTALL | re.MULTILINE
@@ -58,7 +59,6 @@ test_configs = {
         ],
         "system_prompt": "/flnteach",
         "chat_template": "qwen-3",
-        "formatter": qwen3_response_formatter,
         "formatter_requires_tokenizer": False,
         "group_idx": 0,
     },
@@ -69,7 +69,6 @@ test_configs = {
         ],
         "system_prompt": "/flnteach",
         "chat_template": "qwen-3",
-        "formatter": qwen3_response_formatter,
         "formatter_requires_tokenizer": False,
         "group_idx": 0,
     },
@@ -80,7 +79,6 @@ test_configs = {
         ],
         "system_prompt": "/flnteach",
         "chat_template": "qwen-3",
-        "formatter": qwen3_response_formatter,
         "formatter_requires_tokenizer": False,
         "group_idx": 0,
     },
@@ -91,7 +89,16 @@ test_configs = {
         ],
         "system_prompt": "/flnteach",
         "chat_template": "qwen-3",
-        "formatter": qwen3_response_formatter,
+        "formatter_requires_tokenizer": False,
+        "group_idx": 0,
+    },
+    "test5": {
+        "checkpoints": [
+            "test5/outputs/checkpoint-1000",
+            "test5/outputs/checkpoint-2000",
+        ],
+        "system_prompt": "/flnteach",
+        "chat_template": "qwen-3",
         "formatter_requires_tokenizer": False,
         "group_idx": 0,
     },
@@ -106,6 +113,12 @@ test_configs = {
         "formatter_requires_tokenizer": True,
         "group_idx": {"reasoning": 0, "student_material": 2, "response": 3},
     },
+    "base_model": {
+        "checkpoints": ["unsloth/Qwen3-4B-Base"],
+        "chat_template": "qwen-3",
+        "formatter_requires_tokenizer": False,
+        "group_idx": 0,
+    },
 }
 
 # %%
@@ -117,63 +130,104 @@ test_ds
 prompts = list(test_ds["Rendered Prompt"])
 
 # %%
-base_model, base_tokenizer = FastLanguageModel.from_pretrained(
+model, tokenizer = FastLanguageModel.from_pretrained(
     model_name="unsloth/Qwen3-4B-Base",
     max_seq_length=max_seq_length,
     load_in_4bit=False,  # False for LoRA 16bit
     fast_inference=True,  # Enable vllm fast inference
     max_lora_rank=lora_rank,
-    gpu_memory_utilization=0.8,  # Reduce if out of memory
 )
-base_tokenizer = get_chat_template(base_tokenizer, chat_template="qwen-3")
-
+model = FastLanguageModel.get_peft_model(
+    model,
+    r=lora_rank,  # Choose any number > 0 ! Suggested 8, 16, 32, 64, 128
+    target_modules=[
+        "q_proj",
+        "k_proj",
+        "v_proj",
+        "o_proj",
+        "gate_proj",
+        "up_proj",
+        "down_proj",
+    ],
+)
 # %%
+cache_file = Path("GRPO_tests.jsonl")
 res_list = []
+if cache_file.exists():
+    with jsonlines.open(cache_file) as reader:
+        for obj in reader:
+            res_list.append(obj)
+
+resume_point = {}
+for test_name, test_config in test_configs.items():
+    resume_point[test_name] = {}
+    for checkpoint in test_config["checkpoints"]:
+        resume_point[test_name][checkpoint] = sum(
+            True
+            for rd in res_list
+            if rd["test_name"] == test_name
+            and rd["checkpoint"] == Path(checkpoint).name
+        )
+
 for test_name, test_config in test_configs.items():
     for checkpoint in test_config["checkpoints"]:
-        model, tokenizer = FastLanguageModel.from_pretrained(model_name=checkpoint)
+        resume_point_ckpt = resume_point[test_name][checkpoint]
+        if resume_point_ckpt >= len(test_ds):
+            continue
         chat_template = test_config["chat_template"]
         if isinstance(chat_template, str):
             tokenizer = get_chat_template(tokenizer, chat_template="qwen-3")
         else:
             tokenizer.chat_template = chat_template()
 
-        system_prompt = test_config["system_prompt"]
-
-        for batchi, batch_ds in enumerate(test_ds.batch(batch_size=20)):
+        try:
+            lora_request = model.load_lora(checkpoint)
+        except Exception as e:
+            lora_request = None
+            
+        system_prompt = test_config.get("system_prompt")
+        resume_ds = test_ds.select(range(resume_point_ckpt, len(test_ds)))
+        for batchi, batch_ds in enumerate(resume_ds.batch(batch_size=20)):
             print(f"Test Name: {test_name}; checkpoint: {checkpoint}; batch: {batchi}")
 
             prompts = batch_ds["Rendered Prompt"]
             texts = []
             for prompt in prompts:
-                messages = [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": prompt},
-                ]
+                messages = []
+                if system_prompt:
+                    messages.append({"role": "system", "content": system_prompt})
+                messages.append({"role": "user", "content": prompt})
                 text = tokenizer.apply_chat_template(
                     messages,
                     tokenize=False,
                     add_generation_prompt=True,  # Must add for generation
                 )
                 texts.append(text)
-            tokenized = tokenizer(
-                texts, return_tensors="pt", padding=True, padding_side="left"
-            ).to("cuda")
+            # tokenized = tokenizer(
+            #     texts, return_tensors="pt", padding=True, padding_side="left"
+            # ).to("cuda")
 
-            output = model.generate(
-                **tokenized,
-                temperature=1,
-                max_new_tokens=2048,
-                # streamer=TextStreamer(tokenizer, skip_prompt=False),
+            sampling_params = SamplingParams(
+                temperature=1.0,
+                top_k=50,
+                max_tokens=2048,
             )
-            output = tokenizer.batch_decode(output.tolist())
+            outputs = model.fast_generate(
+                texts,
+                sampling_params=sampling_params,
+                lora_request=lora_request,
+            )
             for response, prompt, text, prompt_index in zip(
-                output, prompts, texts, batch_ds["index"]
+                outputs, prompts, texts, batch_ds["index"]
             ):
-                response = response.replace(pad_token, "")
+                # response = response.replace(pad_token, "")
+                response = response.outputs[0].text
                 if response.startswith(text):
                     response = response[len(text) :]
-                parsed_response = parse_generated(response, test_config, tokenizer)
+                if test_config.get("formatter"):
+                    parsed_response = parse_generated(response, test_config, tokenizer)
+                else:
+                    parsed_response = response
                 print(f"\n{'#'*50}\n{parsed_response}\n{'#'*50}\n")
                 row_dict = {
                     "test_name": test_name,
@@ -182,62 +236,9 @@ for test_name, test_config in test_configs.items():
                     "prompt": prompt,
                     "response": parsed_response,
                 }
+                with jsonlines.open(cache_file, "a") as writer:
+                    writer.write(row_dict)
                 res_list.append(row_dict)
-
-        del model
-        gc.collect()
-        torch.cuda.empty_cache()
-
-# %%
-## base model
-for batchi, batch_ds in enumerate(test_ds.batch(batch_size=20)):
-    print(f"Test Name: base_model; checkpoint: null; batch: {batchi}")
-
-    prompts = batch_ds["Rendered Prompt"]
-    texts = []
-    for prompt in prompts:
-        messages = [{"role": "user", "content": prompt}]
-        text = base_tokenizer.apply_chat_template(
-            messages,
-            tokenize=False,
-            add_generation_prompt=True,  # Must add for generation
-        )
-        texts.append(text)
-    tokenized = base_tokenizer(
-        texts, return_tensors="pt", padding=True, padding_side="left"
-    ).to("cuda")
-
-    output = base_model.generate(
-        **tokenized,
-        temperature=1,
-        max_new_tokens=2048,
-        # streamer=TextStreamer(tokenizer, skip_prompt=False),
-    )
-    output = base_tokenizer.batch_decode(output.tolist())
-    for response, prompt, text, prompt_index in zip(
-        output, prompts, texts, batch_ds["index"]
-    ):
-        response = response.replace(pad_token, "")
-        if response.startswith(text):
-            response = response[len(text) :]
-        parsed_response = parse_generated(
-            response,
-            {
-                "formatter": qwen3_response_formatter,
-                "formatter_requires_tokenizer": False,
-                "group_idx": 0,
-            },
-            base_tokenizer,
-        )
-        row_dict = {
-            "test_name": "base_model",
-            "checkpoint": None,
-            "prompt_index": prompt_index,
-            "prompt": prompt,
-            "response": parsed_response,
-        }
-        res_list.append(row_dict)
-
 
 # %%
 res_df = pd.DataFrame(res_list)
