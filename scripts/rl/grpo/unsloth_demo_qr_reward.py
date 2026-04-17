@@ -32,7 +32,7 @@ score_spec_core_primary = {
 }
 
 score_spec_fl_teacher = {
-    **{"fl_teacher": {"4_reading_fluency": 1}}
+    **{"fl_teacher": {"1_oral_language_vocabulary": 1}}
 }
 
 reward_fun_core_primary = qr_reward.reward_fun_generator(score_spec_core_primary, verbose=True)
@@ -178,7 +178,7 @@ training_args = GRPOConfig(
     max_steps=2000,
     save_steps=100,
     report_to="none",  # Can use Weights & Biases
-    output_dir="test7/outputs",
+    output_dir="test10/outputs",
     # For optional training + evaluation
     # fp16_full_eval = True,
     # per_device_eval_batch_size = 4,
@@ -209,11 +209,11 @@ trainer = GRPOTrainer(
 trainer.train()
 
 # %%
-model.save_lora("test7/grpo_saved_lora")
+model.save_lora("test10/grpo_saved_lora")
 
 # %%
 tensors = {}
-with safe_open("test7/grpo_saved_lora/adapter_model.safetensors", framework="pt") as f:
+with safe_open("test10/grpo_saved_lora/adapter_model.safetensors", framework="pt") as f:
     # Verify both A and B are non zero
     for key in f.keys():
         tensor = f.get_tensor(key)
@@ -242,7 +242,7 @@ output = (
     model.fast_generate(
         text,
         sampling_params=sampling_params,
-        lora_request=model.load_lora("test7/grpo_saved_lora"),
+        lora_request=model.load_lora("test10/grpo_saved_lora"),
     )[0]
     .outputs[0]
     .text
@@ -256,7 +256,7 @@ print("#" * 50)
 # %%
 # Merge to 16bit
 model.save_pretrained_merged(
-    "test7/qwen_finetune_16bit",
+    "test10/qwen_finetune_16bit",
     tokenizer,
     save_method="merged_16bit",
 )
@@ -265,8 +265,8 @@ model.save_pretrained_merged(
 # model.save_pretrained_merged("qwen_finetune_4bit", tokenizer, save_method = "merged_4bit",)
 
 # Just LoRA adapters
-model.save_pretrained("test7/qwen_lora")
-tokenizer.save_pretrained("test7/qwen_lora")
+model.save_pretrained("test10/qwen_lora")
+tokenizer.save_pretrained("test10/qwen_lora")
 
-model.save_pretrained_gguf("test7/qwen_finetune", tokenizer, quantization_method="f16")
-model.save_pretrained_gguf("test7/qwen_finetune", tokenizer, quantization_method="bf16")
+model.save_pretrained_gguf("test10/qwen_finetune", tokenizer, quantization_method="f16")
+model.save_pretrained_gguf("test10/qwen_finetune", tokenizer, quantization_method="bf16")

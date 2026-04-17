@@ -15,7 +15,19 @@ checkpoints_dir = (
 HERE = Path(__file__).resolve().parent
 
 # %%
-run_names = ["test1", "test2", "test3", "test4", "test5", "reasoning"]
+run_names = [
+    "test1",
+    "test2",
+    "test3",
+    "test4",
+    "test5",
+    "test6",
+    "test7",
+    "test8",
+    "test9",
+    "test10",
+    "reasoning",
+]
 
 s5cmd_path = str(ROOT / ".venv/bin/s5cmd")
 

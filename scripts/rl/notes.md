@@ -91,7 +91,7 @@ sudo apt install cmake libssl-dev libcurl4-openssl-dev
         - reward length that matches good example
 - the idea of this one is to test a single dimension of FL by itself
 
-### test6
+### test7
 - model
     - qwen3-4b-base
 - reward
@@ -101,6 +101,48 @@ sudo apt install cmake libssl-dev libcurl4-openssl-dev
         - factual_accuracy: 1
     - fl_teacher:
         - reading_fluency: 1
+    - length_target
+        - reward length that matches good example
+- the idea of this one is to test a single dimension of FL by itself
+
+### test8
+- model
+    - qwen3-4b-base
+- reward
+    - core_ed:
+        - pedagogical_structure: 1
+        - lesson_engagement: 0.25
+        - factual_accuracy: 1
+    - fl_teacher:
+        - reading_comprehension: 1
+    - length_target
+        - reward length that matches good example
+- the idea of this one is to test a single dimension of FL by itself
+
+### test9
+- model
+    - qwen3-4b-base
+- reward
+    - core_ed:
+        - pedagogical_structure: 1
+        - lesson_engagement: 0.25
+        - factual_accuracy: 1
+    - fl_teacher:
+        - writing_encoding: 1
+    - length_target
+        - reward length that matches good example
+- the idea of this one is to test a single dimension of FL by itself
+
+### test10
+- model
+    - qwen3-4b-base
+- reward
+    - core_ed:
+        - pedagogical_structure: 1
+        - lesson_engagement: 0.25
+        - factual_accuracy: 1
+    - fl_teacher:
+        - oral_language_vocabulary: 1
     - length_target
         - reward length that matches good example
 - the idea of this one is to test a single dimension of FL by itself

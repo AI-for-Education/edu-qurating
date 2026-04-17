@@ -53,56 +53,107 @@ def parse_generated(generated, test_config, tokenizer):
 # %%
 test_configs = {
     "test1": {
+        "description": "core_ed-fl_teacher",
         "checkpoints": [
             "test1/outputs/checkpoint-1000",
             "test1/outputs/checkpoint-2000",
         ],
         "system_prompt": "/flnteach",
         "chat_template": "qwen-3",
-        "formatter_requires_tokenizer": False,
         "group_idx": 0,
     },
     "test2": {
+        "description": "core_ed-fl_teacher-no_ed_level",
         "checkpoints": [
             "test2/outputs/checkpoint-1000",
             "test2/outputs/checkpoint-2000",
         ],
         "system_prompt": "/flnteach",
         "chat_template": "qwen-3",
-        "formatter_requires_tokenizer": False,
         "group_idx": 0,
     },
     "test3": {
+        "description": "core_ed-fl_teacher-no_ed_level-length_target",
         "checkpoints": [
             "test3/outputs/checkpoint-1000",
             "test3/outputs/checkpoint-2000",
         ],
         "system_prompt": "/flnteach",
         "chat_template": "qwen-3",
-        "formatter_requires_tokenizer": False,
         "group_idx": 0,
     },
     "test4": {
+        "description": "core_ed_reduced-fl_teacher-no_ed_level-length_target",
         "checkpoints": [
             "test4/outputs/checkpoint-1000",
             "test4/outputs/checkpoint-2000",
         ],
         "system_prompt": "/flnteach",
         "chat_template": "qwen-3",
-        "formatter_requires_tokenizer": False,
         "group_idx": 0,
     },
     "test5": {
+        "description": "core_ed_reduced-phonological_awareness-length_target",
         "checkpoints": [
             "test5/outputs/checkpoint-1000",
             "test5/outputs/checkpoint-2000",
         ],
         "system_prompt": "/flnteach",
         "chat_template": "qwen-3",
-        "formatter_requires_tokenizer": False,
+        "group_idx": 0,
+    },
+    "test6": {
+        "description": "core_ed_reduced-systematic_phonics-length_target",
+        "checkpoints": [
+            "test6/outputs/checkpoint-1000",
+            "test6/outputs/checkpoint-2000",
+        ],
+        "system_prompt": "/flnteach",
+        "chat_template": "qwen-3",
+        "group_idx": 0,
+    },
+    "test7": {
+        "description": "core_ed_reduced-reading_fluency-length_target",
+        "checkpoints": [
+            "test7/outputs/checkpoint-1000",
+            "test7/outputs/checkpoint-2000",
+        ],
+        "system_prompt": "/flnteach",
+        "chat_template": "qwen-3",
+        "group_idx": 0,
+    },
+    "test8": {
+        "description": "core_ed_reduced-reading_comprehension-length_target",
+        "checkpoints": [
+            "test8/outputs/checkpoint-1000",
+            "test8/outputs/checkpoint-2000",
+        ],
+        "system_prompt": "/flnteach",
+        "chat_template": "qwen-3",
+        "group_idx": 0,
+    },
+    "test9": {
+        "description": "core_ed_reduced-writing_encoding-length_target",
+        "checkpoints": [
+            "test9/outputs/checkpoint-1000",
+            "test9/outputs/checkpoint-2000",
+        ],
+        "system_prompt": "/flnteach",
+        "chat_template": "qwen-3",
+        "group_idx": 0,
+    },
+    "test10": {
+        "description": "core_ed_reduced-oral_language_vocabulary-length_target",
+        "checkpoints": [
+            "test10/outputs/checkpoint-1000",
+            "test10/outputs/checkpoint-2000",
+        ],
+        "system_prompt": "/flnteach",
+        "chat_template": "qwen-3",
         "group_idx": 0,
     },
     "reasoning/test1": {
+        "description": "reasoning-core_ed_fl_teacher-material-core_ed_fl_student",
         "checkpoints": [
             "reasoning/test1/outputs/checkpoint-1000",
             "reasoning/test1/outputs/checkpoint-2000",
@@ -114,9 +165,9 @@ test_configs = {
         "group_idx": {"reasoning": 0, "student_material": 2, "response": 3},
     },
     "base_model": {
+        "description": "Qwen3-4B-Base",
         "checkpoints": ["unsloth/Qwen3-4B-Base"],
         "chat_template": "qwen-3",
-        "formatter_requires_tokenizer": False,
         "group_idx": 0,
     },
 }
@@ -128,6 +179,16 @@ test_ds = Dataset.load_from_disk(
 test_ds
 
 prompts = list(test_ds["Rendered Prompt"])
+
+# %%
+base_model, base_tokenizer = FastLanguageModel.from_pretrained(
+    model_name="unsloth/Qwen3-4B-Base",
+    max_seq_length=max_seq_length,
+    load_in_4bit=False,  # False for LoRA 16bit
+    fast_inference=True,  # Enable vllm fast inference
+    max_lora_rank=lora_rank,
+)
+base_tokenizer = get_chat_template(base_tokenizer, chat_template="qwen-3")
 
 # %%
 model, tokenizer = FastLanguageModel.from_pretrained(
@@ -175,16 +236,15 @@ for test_name, test_config in test_configs.items():
         if resume_point_ckpt >= len(test_ds):
             continue
         chat_template = test_config["chat_template"]
-        if isinstance(chat_template, str):
-            tokenizer = get_chat_template(tokenizer, chat_template="qwen-3")
+        if test_name == "base_model":
+            tokenizer = base_tokenizer
         else:
-            tokenizer.chat_template = chat_template()
-
-        try:
+            if isinstance(chat_template, str):
+                tokenizer = get_chat_template(tokenizer, chat_template=chat_template)
+            else:
+                tokenizer.chat_template = chat_template()
             lora_request = model.load_lora(checkpoint)
-        except Exception as e:
-            lora_request = None
-            
+
         system_prompt = test_config.get("system_prompt")
         resume_ds = test_ds.select(range(resume_point_ckpt, len(test_ds)))
         for batchi, batch_ds in enumerate(resume_ds.batch(batch_size=20)):
@@ -203,27 +263,36 @@ for test_name, test_config in test_configs.items():
                     add_generation_prompt=True,  # Must add for generation
                 )
                 texts.append(text)
-            # tokenized = tokenizer(
-            #     texts, return_tensors="pt", padding=True, padding_side="left"
-            # ).to("cuda")
-
-            sampling_params = SamplingParams(
-                temperature=1.0,
-                top_k=50,
-                max_tokens=2048,
-            )
-            outputs = model.fast_generate(
-                texts,
-                sampling_params=sampling_params,
-                lora_request=lora_request,
-            )
+            if test_name == "base_model":
+                tokenized = tokenizer(
+                    texts, return_tensors="pt", padding=True, padding_side="left"
+                ).to("cuda")
+                outputs = base_model.generate(
+                    **tokenized, temperature=1.0, top_k=50, max_new_tokens=2048
+                )
+                outputs = tokenizer.batch_decode(outputs.tolist())
+            else:
+                sampling_params = SamplingParams(
+                    temperature=1.0,
+                    top_k=50,
+                    max_tokens=2048,
+                )
+                outputs = model.fast_generate(
+                    texts,
+                    sampling_params=sampling_params,
+                    lora_request=lora_request,
+                )
             for response, prompt, text, prompt_index in zip(
                 outputs, prompts, texts, batch_ds["index"]
             ):
-                # response = response.replace(pad_token, "")
-                response = response.outputs[0].text
-                if response.startswith(text):
-                    response = response[len(text) :]
+                if not isinstance(response, str):
+                    response = response.outputs[0].text
+                else:
+                    response = response.replace(pad_token, "").replace(
+                        tokenizer.eos_token, ""
+                    )
+                    if response.startswith(text):
+                        response = response[len(text) :]
                 if test_config.get("formatter"):
                     parsed_response = parse_generated(response, test_config, tokenizer)
                 else:
@@ -231,6 +300,7 @@ for test_name, test_config in test_configs.items():
                 print(f"\n{'#'*50}\n{parsed_response}\n{'#'*50}\n")
                 row_dict = {
                     "test_name": test_name,
+                    "description": test_config["description"],
                     "checkpoint": Path(checkpoint).name,
                     "prompt_index": prompt_index,
                     "prompt": prompt,
@@ -243,15 +313,17 @@ for test_name, test_config in test_configs.items():
 # %%
 res_df = pd.DataFrame(res_list)
 test_df = test_ds.to_pandas()
-res_df["Good Response"] = (
-    test_df.set_index("index").loc[res_df["prompt_index"], "Good Response"].to_list()
+
+merge_cols = ["Task Name", "Subtask Name", "Topic", "Good Response"]
+res_df[merge_cols] = (
+    test_df.set_index("index").loc[res_df["prompt_index"], merge_cols].to_numpy()
 )
 
 pivot_df = res_df.pivot(
-    columns=["test_name", "checkpoint"],
-    index=["prompt_index", "prompt", "Good Response"],
+    columns=["test_name", "checkpoint", "description"],
+    index=["prompt_index", "prompt", *merge_cols],
     values=["response"],
-).reset_index(level=[0, 1, 2])
+).reset_index()
 
 
 pivot_df.to_csv("GRPO_tests.csv", encoding="utf_8_sig")
