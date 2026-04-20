@@ -229,3 +229,12 @@ class QuratingReward:
             if col.endswith("_average")
         ]
         return labels
+
+
+#######################################################################################
+#######################################################################################
+
+
+class CorrectnessReward:
+    def __init__(self, endpoint: str = "localhost:7654"):
+        pass
