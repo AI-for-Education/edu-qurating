@@ -2,6 +2,11 @@
 sudo apt install cmake libssl-dev libcurl4-openssl-dev
 ```
 
+serve llm for judge-based rewards with llama.cpp docker image
+```
+sudo docker run --gpus all -v ./served_models:/models -p 7654:7654 ghcr.io/ggml-org/llama.cpp:server-cuda -hf unsloth/gemma-4-E4B-it-GGUF --port 7654 --host 0.0.0.0
+```
+
 ### test1
 - model
     - qwen3-4b-base
