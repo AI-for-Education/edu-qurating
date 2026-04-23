@@ -157,3 +157,38 @@ sudo docker run --gpus all -v ./served_models:/models -p 7654:7654 ghcr.io/ggml-
     - qwen3-4b-base
 - reward
     
+### instruction_following/test1
+- model
+    - qwen3-4b-base
+- reward
+    - core_ed:
+        - pedagogical_structure: 1
+        - lesson_engagement: 0.25
+        - factual_accuracy: 1
+    - fl_teacher:
+        - writing_encoding: 1
+    - correctness_reward
+        - reward length that matches good example (3 points)
+        - reward formatting that matches good example (3 points)
+        - reawrd instruction following compared to good example (3 points)
+    - NOTE: both core_ed and fl_teacher used score cap of 8 for any dimension
+    - previous tests used score cap of 12
+
+### instruction_following/test2
+- same as test1 but with cap 12
+
+### instruction_following/test3
+- model
+    - qwen3-4b-base
+- reward
+    - core_ed:
+        - pedagogical_structure: 1
+        - lesson_engagement: 0.25
+        - factual_accuracy: 1
+    - fl_teacher:
+        - phonological_awareness: 1
+    - correctness_reward
+        - reward length that matches good example (3 points)
+        - reward formatting that matches good example (3 points)
+        - reawrd instruction following compared to good example (3 points)
+    - qr score cap 12

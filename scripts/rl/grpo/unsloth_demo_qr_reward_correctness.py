@@ -4,13 +4,17 @@ from unsloth.chat_templates import get_chat_template
 from trl import GRPOConfig, GRPOTrainer  # type: ignore
 import numpy as np
 from datasets import Dataset
-from vllm import SamplingParams
+from fdllm import register_models, get_caller, LLMMessage
 from safetensors import safe_open
 from transformers import TextStreamer
 from transformers.models.qwen3.modeling_qwen3 import Qwen3ForCausalLM
+from vllm import SamplingParams
+from pydantic import BaseModel, Field
 
 from qr_reward import QuratingReward
-from qurating.constants import DATA_DIR
+from qurating.constants import DATA_DIR, ROOT
+
+register_models(ROOT / "custom_models.yaml")
 
 evals_dir = DATA_DIR / "education_evals"
 
@@ -31,24 +35,82 @@ score_spec_core_primary = {
     }
 }
 
-score_spec_fl_teacher = {
-    **{"fl_teacher": {"1_oral_language_vocabulary": 1}}
-}
+score_spec_fl_teacher = {**{"fl_teacher": {"2_phonological_awareness": 1}}}
 
-reward_fun_core_primary = qr_reward.reward_fun_generator(score_spec_core_primary, verbose=True)
-reward_fun_fl_teacher = qr_reward.reward_fun_generator(score_spec_fl_teacher)
+reward_fun_core_primary = qr_reward.reward_fun_generator(
+    score_spec_core_primary, name="core_ed", score_cap=(-np.inf, 12.0)
+)
+reward_fun_fl_teacher = qr_reward.reward_fun_generator(
+    score_spec_fl_teacher, name="phonological_awareness", score_cap=(-np.inf, 12.0)
+)
 
 
-def length_target(completions, **kwargs):
+class CorrectnessResponse(BaseModel):
+    length_match: bool = Field(
+        description="True if the length of the response matches the good response"
+    )
+    format_match: bool = Field(
+        description=(
+            "True if the overall formatting of the response matches the good response"
+        )
+    )
+    instruction_following: bool = Field(
+        description=(
+            "True if the response follows the task instructions as well"
+            " or almost as well as the good response"
+        )
+    )
+
+
+caller = get_caller("gemma-4-E4B")
+weight = 3
+
+
+def correctness_reward(prompts, completions, **kwargs):
     assert "Good Response" in kwargs
-    resp_len = np.array([len(completion[0]["content"]) for completion in completions])
-    good_len = np.array([len(gr) for gr in kwargs["Good Response"]])
-    max_len = max_seq_length
-    print(resp_len)
-    print(good_len)
-    print(max_len)
-    len_score = 5 * np.maximum((1 - np.abs(resp_len - good_len) / max_len), 0) ** 0.5
-    return len_score.tolist()
+    prompts_text = [prompt[-1]["content"] for prompt in prompts]
+    responses = [completion[0]["content"] for completion in completions]
+    good_responses = kwargs["Good Response"]
+    scores = []
+    for prompt, resp, good_resp in zip(prompts_text, responses, good_responses):
+        message_text = (
+            "Below is a task instruction, a response to that task from a trainee assistant,"
+            " and a corresponding good response from an expert assistant."
+            f"\n<Task>\n{prompt}\n</Task>\n<Response>\n{resp}\n</Response>"
+            f"\n<Good Response>\n{good_resp}\n</Good Response>"
+            "\n\nI want you to judge the trainee response against the good response."
+        )
+        message = LLMMessage(Role="user", Message=message_text)
+        out = caller.call(
+            message, response_schema=CorrectnessResponse, max_tokens=64000
+        )
+        try:
+            out_obj = CorrectnessResponse.model_validate_json(out.Message)
+        except:
+            scores.append(0.0)
+            continue
+        print(prompt)
+        print(resp)
+        print(out_obj.model_dump_json(indent=2))
+        score = (
+            float(out_obj.length_match)
+            + float(out_obj.format_match)
+            + float(out_obj.instruction_following)
+        )
+        scores.append(score * weight)
+    return scores
+
+
+# def length_target(completions, **kwargs):
+#     assert "Good Response" in kwargs
+#     resp_len = np.array([len(completion[0]["content"]) for completion in completions])
+#     good_len = np.array([len(gr) for gr in kwargs["Good Response"]])
+#     max_len = max_seq_length
+#     print(resp_len)
+#     print(good_len)
+#     print(max_len)
+#     len_score = 5 * np.maximum((1 - np.abs(resp_len - good_len) / max_len), 0) ** 0.5
+#     return len_score.tolist()
 
 
 # %%
@@ -126,7 +188,11 @@ reward_fun_core_primary(
     completions=[[{"role": "assistant", "content": "ab " * 1000}]],
 )
 
-length_target(completions=[[{"role": "assistant", "content": "ab " * 1000}]], **{"Good Response": ["ab"]})
+correctness_reward(
+    prompts=[dataset[0]["prompt"]],
+    completions=[[{"role": "assistant", "content": dataset[0]["Bad Response"]}]],
+    **{"Good Response": [dataset[0]["Good Response"]]},
+)
 
 # %%
 tokenized = dataset.map(
@@ -140,7 +206,7 @@ tokenized = dataset.map(
 print(tokenizer.decode(tokenized[0]["tokens"]))
 tokenized = tokenized.map(lambda x: {"L": len(x["tokens"])})
 
-maximum_length = int(np.quantile(tokenized["L"], 0.9))
+maximum_length = int(np.quantile(tokenized["L"], 0.99))
 print("Max Length = ", maximum_length)
 
 # # Filter only samples smaller than 90% max length
@@ -178,7 +244,7 @@ training_args = GRPOConfig(
     max_steps=2000,
     save_steps=100,
     report_to="none",  # Can use Weights & Biases
-    output_dir="test10/outputs",
+    output_dir="instruction_following/test3/outputs",
     # For optional training + evaluation
     # fp16_full_eval = True,
     # per_device_eval_batch_size = 4,
@@ -196,7 +262,7 @@ trainer = GRPOTrainer(
     reward_funcs=[
         reward_fun_core_primary,
         reward_fun_fl_teacher,
-        length_target,  # type: ignore
+        correctness_reward,  # type: ignore
     ],
     args=training_args,
     train_dataset=dataset,
@@ -209,11 +275,14 @@ trainer = GRPOTrainer(
 trainer.train()
 
 # %%
-model.save_lora("test10/grpo_saved_lora")
+model.save_lora("instruction_following/test3/grpo_saved_lora")
 
 # %%
 tensors = {}
-with safe_open("test10/grpo_saved_lora/adapter_model.safetensors", framework="pt") as f:
+with safe_open(
+    "instruction_following/test3/grpo_saved_lora/adapter_model.safetensors",
+    framework="pt",
+) as f:
     # Verify both A and B are non zero
     for key in f.keys():
         tensor = f.get_tensor(key)
@@ -242,7 +311,7 @@ output = (
     model.fast_generate(
         text,
         sampling_params=sampling_params,
-        lora_request=model.load_lora("test10/grpo_saved_lora"),
+        lora_request=model.load_lora("instruction_following/test3/grpo_saved_lora"),
     )[0]
     .outputs[0]
     .text
@@ -256,7 +325,7 @@ print("#" * 50)
 # %%
 # Merge to 16bit
 model.save_pretrained_merged(
-    "test10/qwen_finetune_16bit",
+    "instruction_following/test3/qwen_finetune_16bit",
     tokenizer,
     save_method="merged_16bit",
 )
@@ -265,8 +334,12 @@ model.save_pretrained_merged(
 # model.save_pretrained_merged("qwen_finetune_4bit", tokenizer, save_method = "merged_4bit",)
 
 # Just LoRA adapters
-model.save_pretrained("test10/qwen_lora")
-tokenizer.save_pretrained("test10/qwen_lora")
+model.save_pretrained("instruction_following/test3/qwen_lora")
+tokenizer.save_pretrained("instruction_following/test3/qwen_lora")
 
-model.save_pretrained_gguf("test10/qwen_finetune", tokenizer, quantization_method="f16")
-model.save_pretrained_gguf("test10/qwen_finetune", tokenizer, quantization_method="bf16")
+model.save_pretrained_gguf(
+    "instruction_following/test3/qwen_finetune", tokenizer, quantization_method="f16"
+)
+model.save_pretrained_gguf(
+    "instruction_following/test3/qwen_finetune", tokenizer, quantization_method="bf16"
+)

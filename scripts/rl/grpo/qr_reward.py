@@ -84,6 +84,8 @@ class QuratingReward:
     def reward_fun_generator(
         self,
         score_spec,
+        name: str,
+        score_cap: tuple[float, float] = (-np.inf, 12.0),
         grouper: re.Pattern | None = None,
         group_idx: int | None = None,
         verbose: bool = False,
@@ -110,8 +112,9 @@ class QuratingReward:
             else:
                 use_completions = completions
 
-            return self.reward(prompts, use_completions, score_spec)
+            return self.reward(prompts, use_completions, score_spec, score_cap)
 
+        reward_fun.__name__ = name
         return reward_fun
 
     def reward(
@@ -119,6 +122,7 @@ class QuratingReward:
         prompts: list[list[dict[str, str]]],
         completions: list[list[dict[str, str]]],
         score_spec: dict[str, dict[str, float | int]],
+        score_cap: tuple[float, float],
     ):
         responses = [completion[0]["content"] for completion in completions]
         ds = Dataset.from_list([{"text": resp} for resp in responses])
@@ -127,7 +131,13 @@ class QuratingReward:
         for model_type, weight_dict in score_spec.items():
             for label, weight in weight_dict.items():
                 score_holders.append(
-                    np.minimum(np.array(scores[model_type][f"{label}_average"]), 12)
+                    np.maximum(
+                        np.minimum(
+                            np.array(scores[model_type][f"{label}_average"]),
+                            score_cap[1],
+                        ),
+                        score_cap[0],
+                    )
                     * weight
                 )
         scores_arr = np.mean(score_holders, axis=0)
