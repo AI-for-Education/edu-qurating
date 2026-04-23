@@ -152,6 +152,36 @@ test_configs = {
         "chat_template": "qwen-3",
         "group_idx": 0,
     },
+    "instruction_following/test1": {
+        "description": "core_ed_reduced-writing_encoding-instruction_following",
+        "checkpoints": [
+            "instruction_following/test1/outputs/checkpoint-1000",
+            "instruction_following/test1/outputs/checkpoint-2000",
+        ],
+        "system_prompt": "/flnteach",
+        "chat_template": "qwen-3",
+        "group_idx": 0,
+    },
+    "instruction_following/test2": {
+        "description": "core_ed_reduced-writing_encoding-instruction_following-v2",
+        "checkpoints": [
+            "instruction_following/test2/outputs/checkpoint-1000",
+            "instruction_following/test2/outputs/checkpoint-2000",
+        ],
+        "system_prompt": "/flnteach",
+        "chat_template": "qwen-3",
+        "group_idx": 0,
+    },
+    "instruction_following/test3": {
+        "description": "core_ed_reduced-phonological_awareness-instruction_following",
+        "checkpoints": [
+            "instruction_following/test3/outputs/checkpoint-1000",
+            "instruction_following/test3/outputs/checkpoint-2000",
+        ],
+        "system_prompt": "/flnteach",
+        "chat_template": "qwen-3",
+        "group_idx": 0,
+    },
     "reasoning/test1": {
         "description": "reasoning-core_ed_fl_teacher-material-core_ed_fl_student",
         "checkpoints": [
