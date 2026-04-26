@@ -182,6 +182,46 @@ test_configs = {
         "chat_template": "qwen-3",
         "group_idx": 0,
     },
+    "instruction_following/test4": {
+        "description": "core_ed_reduced-phonological_awareness-instruction_following",
+        "checkpoints": [
+            "instruction_following/test4/outputs/checkpoint-1000",
+            "instruction_following/test4/outputs/checkpoint-2000",
+        ],
+        "system_prompt": "/flnteach",
+        "chat_template": "qwen-3",
+        "group_idx": 0,
+    },
+    "instruction_following/test5": {
+        "description": "core_ed_reduced-phonological_awareness-instruction_following",
+        "checkpoints": [
+            "instruction_following/test5/outputs/checkpoint-1000",
+            "instruction_following/test5/outputs/checkpoint-2000",
+        ],
+        "system_prompt": "/flnteach",
+        "chat_template": "qwen-3",
+        "group_idx": 0,
+    },
+    "instruction_following/test6": {
+        "description": "core_ed_reduced-phonological_awareness-instruction_following",
+        "checkpoints": [
+            "instruction_following/test6/outputs/checkpoint-1000",
+            "instruction_following/test6/outputs/checkpoint-2000",
+        ],
+        "system_prompt": "/flnteach",
+        "chat_template": "qwen-3",
+        "group_idx": 0,
+    },
+    "instruction_following/test7": {
+        "description": "core_ed_reduced-phonological_awareness-instruction_following",
+        "checkpoints": [
+            "instruction_following/test7/outputs/checkpoint-1000",
+            "instruction_following/test7/outputs/checkpoint-2000",
+        ],
+        "system_prompt": "/flnteach",
+        "chat_template": "qwen-3",
+        "group_idx": 0,
+    },
     "reasoning/test1": {
         "description": "reasoning-core_ed_fl_teacher-material-core_ed_fl_student",
         "checkpoints": [

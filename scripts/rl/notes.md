@@ -192,3 +192,67 @@ sudo docker run --gpus all -v ./served_models:/models -p 7654:7654 ghcr.io/ggml-
         - reward formatting that matches good example (3 points)
         - reawrd instruction following compared to good example (3 points)
     - qr score cap 12
+
+### instruction_following/test4
+- model
+    - qwen3-4b-base
+- reward
+    - core_ed:
+        - pedagogical_structure: 1
+        - lesson_engagement: 0.25
+        - factual_accuracy: 1
+    - fl_teacher:
+        - reading_comprehension: 1
+    - correctness_reward
+        - reward length that matches good example (3 points)
+        - reward formatting that matches good example (3 points)
+        - reawrd instruction following compared to good example (3 points)
+    - qr score cap 12
+
+### instruction_following/test5
+- model
+    - qwen3-4b-base
+- reward
+    - core_ed:
+        - pedagogical_structure: 1
+        - lesson_engagement: 0.25
+        - factual_accuracy: 1
+    - fl_teacher:
+        - systematic_phonics: 1
+    - correctness_reward
+        - reward length that matches good example (3 points)
+        - reward formatting that matches good example (3 points)
+        - reawrd instruction following compared to good example (3 points)
+    - qr score cap 12
+
+### instruction_following/test6
+- model
+    - qwen3-4b-base
+- reward
+    - core_ed:
+        - pedagogical_structure: 1
+        - lesson_engagement: 0.25
+        - factual_accuracy: 1
+    - fl_teacher:
+        - phonological_awareness: 1
+    - correctness_reward
+        - reward length that matches good example (3 points)
+        - reward formatting that matches good example (3 points)
+        - reawrd instruction following compared to good example (3 points)
+    - qr score cap 12
+
+### instruction_following/test7
+- model
+    - qwen3-4b-base
+- reward
+    - core_ed:
+        - systematic_phonics: 1
+        - lesson_engagement: 0.25
+        - factual_accuracy: 1
+    - fl_teacher:
+        - oral_language_vocabulary: 1
+    - correctness_reward
+        - reward length that matches good example (3 points)
+        - reward formatting that matches good example (3 points)
+        - reawrd instruction following compared to good example (3 points)
+    - qr score cap 12
