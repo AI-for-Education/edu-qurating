@@ -21,7 +21,7 @@ dependencies = [
     "fabdata-llm==0.30.0",
     "joblib>=1.5.1",
     "matplotlib>=3.10.5",
-    "peft>=0.17.1",
+    "peft>=0.17.1,<0.19.0",
     "pydantic>=2.11.7",
     "openai>=1.61.1",
     "torch>=2.6.0",
