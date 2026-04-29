@@ -3,7 +3,7 @@ from unsloth import FastLanguageModel
 from unsloth.chat_templates import get_chat_template
 from trl import GRPOConfig, GRPOTrainer  # type: ignore
 import numpy as np
-from datasets import Dataset
+from datasets import Dataset, load_from_disk
 from fdllm import register_models, get_caller, LLMMessage
 from safetensors import safe_open
 from transformers import TextStreamer
@@ -22,6 +22,11 @@ max_seq_length = 2048
 max_prompt_length = 256
 lora_rank = 32
 
+# content_column = "Rendered Prompt"
+# GOOD_RESPONSE_COLUMN = "Good Response"
+CONTENT_COLUMN = "content"
+GOOD_RESPONSE_COLUMN = "example_of_good_answer"
+
 # %%
 # load qurating reward functions
 qr_reward = QuratingReward()
@@ -35,7 +40,20 @@ score_spec_core_primary = {
     }
 }
 
-score_spec_fl_teacher = {**{"fl_teacher": {"3_systematic_phonics": 1}}}
+# score_spec_fl_teacher = {**{"fl_teacher": {"3_systematic_phonics": 1}}}
+score_spec_fl_teacher = {
+    **{
+        "fl_teacher": {
+            ("1_oral_language_vocabulary", {"criterion": "pairwise_1_oral_language_vocabulary"}): 1,
+            ("2_phonological_awareness", {"criterion": "pairwise_2_phonological_awareness"}): 1,
+            ("3_systematic_phonics", {"criterion": "pairwise_3_systematic_phonics"}): 1,
+            ("4_reading_fluency", {"criterion": "pairwise_4_reading_fluency"}): 1,
+            ("5_reading_comprehension", {"criterion": "pairwise_5_reading_comprehension"}): 1,
+            ("6_writing_encoding", {"criterion": "pairwise_6_writing_encoding"}): 1,
+            ("7_pedagogical_quality", {"criterion": "pairwise_7_pedagogical_quality"}): 1,
+        }
+    }
+}
 
 reward_fun_core_primary = qr_reward.reward_fun_generator(
     score_spec_core_primary, name="core_ed", score_cap=(-np.inf, 12.0)
@@ -67,10 +85,10 @@ weight = 3
 
 
 def correctness_reward(prompts, completions, **kwargs):
-    assert "Good Response" in kwargs
+    assert GOOD_RESPONSE_COLUMN in kwargs
     prompts_text = [prompt[-1]["content"] for prompt in prompts]
     responses = [completion[0]["content"] for completion in completions]
-    good_responses = kwargs["Good Response"]
+    good_responses = kwargs[GOOD_RESPONSE_COLUMN]
     scores = []
     for prompt, resp, good_resp in zip(prompts_text, responses, good_responses):
         message_text = (
@@ -102,9 +120,9 @@ def correctness_reward(prompts, completions, **kwargs):
 
 
 # def length_target(completions, **kwargs):
-#     assert "Good Response" in kwargs
+#     assert GOOD_RESPONSE_COLUMN in kwargs
 #     resp_len = np.array([len(completion[0]["content"]) for completion in completions])
-#     good_len = np.array([len(gr) for gr in kwargs["Good Response"]])
+#     good_len = np.array([len(gr) for gr in kwargs[GOOD_RESPONSE_COLUMN]])
 #     max_len = max_seq_length
 #     print(resp_len)
 #     print(good_len)
@@ -117,18 +135,14 @@ def correctness_reward(prompts, completions, **kwargs):
 system_prompt = """/flteacher"""
 
 # %%
-dataset = Dataset.load_from_disk(
-    str(evals_dir / "education_evals_combined_literacy_grade0-3_train.parquet")
-)
+dataset = load_from_disk(str(evals_dir / "flteach_grpo_dataset_train-test"))["train"]
 dataset
 
 # %%
-test_ds = Dataset.load_from_disk(
-    str(evals_dir / "education_evals_combined_literacy_grade0-3_test.parquet")
-)
+test_ds = load_from_disk(str(evals_dir / "flteach_grpo_dataset_train-test"))["test"]
 test_ds
 
-prompts = list(test_ds["Rendered Prompt"])
+prompts = list(test_ds[CONTENT_COLUMN])
 test_promptiter = iter(prompts)
 
 # %%
@@ -162,10 +176,10 @@ model = FastLanguageModel.get_peft_model(
 tokenizer.apply_chat_template(
     [
         {"role": "system", "content": system_prompt},
-        {"role": "user", "content": dataset[0]["Rendered Prompt"]},
+        {"role": "user", "content": dataset[0][CONTENT_COLUMN]},
         {
             "role": "assistant",
-            "content": dataset[0]["Good Response"],
+            "content": dataset[0][GOOD_RESPONSE_COLUMN],
         },
     ],
     tokenize=False,
@@ -177,7 +191,7 @@ dataset = dataset.map(
     lambda x: {
         "prompt": [
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": x["Rendered Prompt"]},
+            {"role": "user", "content": x[CONTENT_COLUMN]},
         ]
     }
 )
@@ -191,7 +205,7 @@ reward_fun_core_primary(
 correctness_reward(
     prompts=[dataset[0]["prompt"]],
     completions=[[{"role": "assistant", "content": dataset[0]["Bad Response"]}]],
-    **{"Good Response": [dataset[0]["Good Response"]]},
+    **{GOOD_RESPONSE_COLUMN: [dataset[0][GOOD_RESPONSE_COLUMN]]},
 )
 
 # %%
@@ -338,8 +352,12 @@ model.save_pretrained("instruction_following_128/test1/qwen_lora")
 tokenizer.save_pretrained("instruction_following_128/test1/qwen_lora")
 
 model.save_pretrained_gguf(
-    "instruction_following_128/test1/qwen_finetune", tokenizer, quantization_method="f16"
+    "instruction_following_128/test1/qwen_finetune",
+    tokenizer,
+    quantization_method="f16",
 )
 model.save_pretrained_gguf(
-    "instruction_following_128/test1/qwen_finetune", tokenizer, quantization_method="bf16"
+    "instruction_following_128/test1/qwen_finetune",
+    tokenizer,
+    quantization_method="bf16",
 )

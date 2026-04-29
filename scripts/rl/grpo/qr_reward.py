@@ -121,7 +121,7 @@ class QuratingReward:
         self,
         prompts: list[list[dict[str, str]]],
         completions: list[list[dict[str, str]]],
-        score_spec: dict[str, dict[str, float | int]],
+        score_spec: dict[str, dict[str | tuple, float | int]],
         score_cap: tuple[float, float],
     ):
         responses = [completion[0]["content"] for completion in completions]
@@ -130,16 +130,16 @@ class QuratingReward:
         score_holders = []
         for model_type, weight_dict in score_spec.items():
             for label, weight in weight_dict.items():
-                score_holders.append(
-                    np.maximum(
-                        np.minimum(
-                            np.array(scores[model_type][f"{label}_average"]),
-                            score_cap[1],
-                        ),
-                        score_cap[0],
-                    )
-                    * weight
+                if isinstance(label, str):
+                    label_score_vec = np.array(scores[model_type][f"{label}_average"])
+                elif isinstance(label, tuple):
+                    label, row_matcher = label
+                else:
+                    raise ValueError("label must be a string or a tuple")
+                capped_score_vec = weight * np.maximum(
+                    np.minimum(label_score_vec, score_cap[1]), score_cap[0]
                 )
+                score_holders.append(capped_score_vec)
         scores_arr = np.mean(score_holders, axis=0)
         return scores_arr.tolist()
 
