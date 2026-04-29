@@ -13,7 +13,7 @@ timestamp_req = r"^(.*?) (\d{8}_\d{6}) Raw.xlsx$"
 timestamp_rec = re.compile(timestamp_req)
 
 # %%
-evals_dir = DATA_DIR / "education_evals"
+evals_dir = DATA_DIR / "education_evals_original"
 train_dir = evals_dir / "train"
 eval_dir = evals_dir / "eval"
 

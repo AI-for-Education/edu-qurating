@@ -1,0 +1,6 @@
+outs:
+- md5: 6806af253a4e648ebd8710db709e2bcd.dir
+  size: 10262173
+  nfiles: 50
+  hash: md5
+  path: education_evals_original
