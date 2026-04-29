@@ -34,6 +34,6 @@ s5cmd_path = str(ROOT / ".venv/bin/s5cmd")
 
 for run_name in run_names:
     cmd = [s5cmd_path, "--json"]
-    cmd += ["cp", "-n", "-s", "-u", "-sp"]
+    cmd += ["cp", "-s", "-u", "-sp"]
     cmd += [str(HERE / "grpo" / f"{run_name}/*"), f"{checkpoints_dir}{run_name}/"]
     subprocess.run(cmd)

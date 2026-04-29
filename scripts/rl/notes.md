@@ -10,6 +10,7 @@ sudo docker run --gpus all -v ./served_models:/models -p 7654:7654 ghcr.io/ggml-
 ### test1
 - model
     - qwen3-4b-base
+    - lora rank 32
 - reward
     - core_ed:
         - pedagogical_structure: 1
@@ -25,6 +26,7 @@ sudo docker run --gpus all -v ./served_models:/models -p 7654:7654 ghcr.io/ggml-
 ### test2
 - model
     - qwen3-4b-base
+    - lora rank 32
 - reward
     - core_ed:
         - pedagogical_structure: 1
@@ -40,6 +42,7 @@ sudo docker run --gpus all -v ./served_models:/models -p 7654:7654 ghcr.io/ggml-
 ### test3
 - model
     - qwen3-4b-base
+    - lora rank 32
 - reward
     - core_ed:
         - pedagogical_structure: 1
@@ -58,6 +61,7 @@ sudo docker run --gpus all -v ./served_models:/models -p 7654:7654 ghcr.io/ggml-
 ### test4
 - model
     - qwen3-4b-base
+    - lora rank 32
 - reward
     - core_ed:
         - pedagogical_structure: 0.1
@@ -71,6 +75,7 @@ sudo docker run --gpus all -v ./served_models:/models -p 7654:7654 ghcr.io/ggml-
 ### test5
 - model
     - qwen3-4b-base
+    - lora rank 32
 - reward
     - core_ed:
         - pedagogical_structure: 1
@@ -85,6 +90,7 @@ sudo docker run --gpus all -v ./served_models:/models -p 7654:7654 ghcr.io/ggml-
 ### test6
 - model
     - qwen3-4b-base
+    - lora rank 32
 - reward
     - core_ed:
         - pedagogical_structure: 1
@@ -99,6 +105,7 @@ sudo docker run --gpus all -v ./served_models:/models -p 7654:7654 ghcr.io/ggml-
 ### test7
 - model
     - qwen3-4b-base
+    - lora rank 32
 - reward
     - core_ed:
         - pedagogical_structure: 1
@@ -113,6 +120,7 @@ sudo docker run --gpus all -v ./served_models:/models -p 7654:7654 ghcr.io/ggml-
 ### test8
 - model
     - qwen3-4b-base
+    - lora rank 32
 - reward
     - core_ed:
         - pedagogical_structure: 1
@@ -127,6 +135,7 @@ sudo docker run --gpus all -v ./served_models:/models -p 7654:7654 ghcr.io/ggml-
 ### test9
 - model
     - qwen3-4b-base
+    - lora rank 32
 - reward
     - core_ed:
         - pedagogical_structure: 1
@@ -141,6 +150,7 @@ sudo docker run --gpus all -v ./served_models:/models -p 7654:7654 ghcr.io/ggml-
 ### test10
 - model
     - qwen3-4b-base
+    - lora rank 32
 - reward
     - core_ed:
         - pedagogical_structure: 1
@@ -155,11 +165,13 @@ sudo docker run --gpus all -v ./served_models:/models -p 7654:7654 ghcr.io/ggml-
 ### reasoning/test1
 - model
     - qwen3-4b-base
+    - lora rank 32
 - reward
     
 ### instruction_following/test1
 - model
     - qwen3-4b-base
+    - lora rank 32
 - reward
     - core_ed:
         - pedagogical_structure: 1
@@ -180,6 +192,7 @@ sudo docker run --gpus all -v ./served_models:/models -p 7654:7654 ghcr.io/ggml-
 ### instruction_following/test3
 - model
     - qwen3-4b-base
+    - lora rank 32
 - reward
     - core_ed:
         - pedagogical_structure: 1
@@ -196,6 +209,7 @@ sudo docker run --gpus all -v ./served_models:/models -p 7654:7654 ghcr.io/ggml-
 ### instruction_following/test4
 - model
     - qwen3-4b-base
+    - lora rank 32
 - reward
     - core_ed:
         - pedagogical_structure: 1
@@ -212,6 +226,7 @@ sudo docker run --gpus all -v ./served_models:/models -p 7654:7654 ghcr.io/ggml-
 ### instruction_following/test5
 - model
     - qwen3-4b-base
+    - lora rank 32
 - reward
     - core_ed:
         - pedagogical_structure: 1
@@ -228,6 +243,7 @@ sudo docker run --gpus all -v ./served_models:/models -p 7654:7654 ghcr.io/ggml-
 ### instruction_following/test6
 - model
     - qwen3-4b-base
+    - lora rank 32
 - reward
     - core_ed:
         - pedagogical_structure: 1
@@ -244,13 +260,48 @@ sudo docker run --gpus all -v ./served_models:/models -p 7654:7654 ghcr.io/ggml-
 ### instruction_following/test7
 - model
     - qwen3-4b-base
+    - lora rank 32
 - reward
     - core_ed:
-        - systematic_phonics: 1
+        - pedagogical_structure: 1
         - lesson_engagement: 0.25
         - factual_accuracy: 1
     - fl_teacher:
         - oral_language_vocabulary: 1
+    - correctness_reward
+        - reward length that matches good example (3 points)
+        - reward formatting that matches good example (3 points)
+        - reawrd instruction following compared to good example (3 points)
+    - qr score cap 12
+
+### instruction_following/test8
+- model
+    - qwen3-4b-base
+    - lora rank 32
+- reward
+    - core_ed:
+        - pedagogical_structure: 1
+        - lesson_engagement: 0.25
+        - factual_accuracy: 1
+    - fl_teacher:
+        - reading_fluency: 1
+    - correctness_reward
+        - reward length that matches good example (3 points)
+        - reward formatting that matches good example (3 points)
+        - reawrd instruction following compared to good example (3 points)
+    - qr score cap 12
+
+### instruction_following_128/test1
+- model
+    - qwen3-4b-base
+    - lora rank 128
+- reward
+    - core_ed:
+        - pedagogical_structure: 1
+        - lesson_engagement: 0.25
+        - factual_accuracy: 1
+    - fl_teacher:
+        - systematic_phonics: 1
     - correctness_reward
         - reward length that matches good example (3 points)
         - reward formatting that matches good example (3 points)

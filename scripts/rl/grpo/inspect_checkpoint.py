@@ -19,7 +19,7 @@ evals_dir = DATA_DIR / "education_evals"
 
 max_seq_length = 2048
 max_prompt_length = 256
-lora_rank = 128
+max_lora_rank = 128
 
 qwen3_response_formatter = re.compile(
     r"(.+?)<|endoftext|>.*", flags=re.DOTALL | re.MULTILINE
@@ -183,7 +183,7 @@ test_configs = {
         "group_idx": 0,
     },
     "instruction_following/test4": {
-        "description": "core_ed_reduced-phonological_awareness-instruction_following",
+        "description": "core_ed_reduced-reading_comprehension-instruction_following",
         "checkpoints": [
             "instruction_following/test4/outputs/checkpoint-1000",
             "instruction_following/test4/outputs/checkpoint-2000",
@@ -193,7 +193,7 @@ test_configs = {
         "group_idx": 0,
     },
     "instruction_following/test5": {
-        "description": "core_ed_reduced-phonological_awareness-instruction_following",
+        "description": "core_ed_reduced-systematic_phonics-instruction_following",
         "checkpoints": [
             "instruction_following/test5/outputs/checkpoint-1000",
             "instruction_following/test5/outputs/checkpoint-2000",
@@ -213,10 +213,30 @@ test_configs = {
         "group_idx": 0,
     },
     "instruction_following/test7": {
-        "description": "core_ed_reduced-phonological_awareness-instruction_following",
+        "description": "core_ed_reduced-oral_language_vocabulary-instruction_following",
         "checkpoints": [
             "instruction_following/test7/outputs/checkpoint-1000",
             "instruction_following/test7/outputs/checkpoint-2000",
+        ],
+        "system_prompt": "/flnteach",
+        "chat_template": "qwen-3",
+        "group_idx": 0,
+    },
+    "instruction_following/test8": {
+        "description": "core_ed_reduced-reading_fluency-instruction_following",
+        "checkpoints": [
+            "instruction_following/test8/outputs/checkpoint-1000",
+            "instruction_following/test8/outputs/checkpoint-2000",
+        ],
+        "system_prompt": "/flnteach",
+        "chat_template": "qwen-3",
+        "group_idx": 0,
+    },
+    "instruction_following_128/test1": {
+        "description": "core_ed_reduced-systematic_phonics-instruction_following_rank-128",
+        "checkpoints": [
+            "instruction_following_128/test1/outputs/checkpoint-1000",
+            "instruction_following_128/test1/outputs/checkpoint-2000",
         ],
         "system_prompt": "/flnteach",
         "chat_template": "qwen-3",
@@ -256,7 +276,7 @@ base_model, base_tokenizer = FastLanguageModel.from_pretrained(
     max_seq_length=max_seq_length,
     load_in_4bit=False,  # False for LoRA 16bit
     fast_inference=True,  # Enable vllm fast inference
-    max_lora_rank=lora_rank,
+    max_lora_rank=max_lora_rank,
 )
 base_tokenizer = get_chat_template(base_tokenizer, chat_template="qwen-3")
 
@@ -266,11 +286,11 @@ model, tokenizer = FastLanguageModel.from_pretrained(
     max_seq_length=max_seq_length,
     load_in_4bit=False,  # False for LoRA 16bit
     fast_inference=True,  # Enable vllm fast inference
-    max_lora_rank=lora_rank,
+    max_lora_rank=max_lora_rank,
 )
 model = FastLanguageModel.get_peft_model(
     model,
-    r=lora_rank,  # Choose any number > 0 ! Suggested 8, 16, 32, 64, 128
+    r=max_lora_rank,  # Choose any number > 0 ! Suggested 8, 16, 32, 64, 128
     target_modules=[
         "q_proj",
         "k_proj",
@@ -396,6 +416,6 @@ pivot_df = res_df.pivot(
 ).reset_index()
 
 
-pivot_df.to_csv("GRPO_tests.csv", encoding="utf_8_sig")
+pivot_df.to_csv("GRPO_tests_FLN.csv", encoding="utf_8_sig")
 
 # %%

@@ -16,17 +16,18 @@ HERE = Path(__file__).resolve().parent
 
 # %%
 run_names = [
-    "test1",
-    "test2",
-    "test3",
-    "test4",
-    "test5",
-    "test6",
-    "test7",
-    "test8",
-    "test9",
-    "test10",
-    "reasoning",
+    # "test1",
+    # "test2",
+    # "test3",
+    # "test4",
+    # "test5",
+    # "test6",
+    # "test7",
+    # "test8",
+    # "test9",
+    # "test10",
+    "instruction_following",
+    # "reasoning",
 ]
 
 s5cmd_path = str(ROOT / ".venv/bin/s5cmd")

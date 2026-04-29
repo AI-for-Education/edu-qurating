@@ -35,13 +35,13 @@ score_spec_core_primary = {
     }
 }
 
-score_spec_fl_teacher = {**{"fl_teacher": {"1_oral_language_vocabulary": 1}}}
+score_spec_fl_teacher = {**{"fl_teacher": {"3_systematic_phonics": 1}}}
 
 reward_fun_core_primary = qr_reward.reward_fun_generator(
     score_spec_core_primary, name="core_ed", score_cap=(-np.inf, 12.0)
 )
 reward_fun_fl_teacher = qr_reward.reward_fun_generator(
-    score_spec_fl_teacher, name="oral_language_vocabulary", score_cap=(-np.inf, 12.0)
+    score_spec_fl_teacher, name="systematic_phonics", score_cap=(-np.inf, 12.0)
 )
 
 
@@ -244,7 +244,7 @@ training_args = GRPOConfig(
     max_steps=2000,
     save_steps=100,
     report_to="none",  # Can use Weights & Biases
-    output_dir="instruction_following/test8/outputs",
+    output_dir="instruction_following_128/test1/outputs",
     # For optional training + evaluation
     # fp16_full_eval = True,
     # per_device_eval_batch_size = 4,
@@ -275,12 +275,12 @@ trainer = GRPOTrainer(
 trainer.train()
 
 # %%
-model.save_lora("instruction_following/test8/grpo_saved_lora")
+model.save_lora("instruction_following_128/test1/grpo_saved_lora")
 
 # %%
 tensors = {}
 with safe_open(
-    "instruction_following/test8/grpo_saved_lora/adapter_model.safetensors",
+    "instruction_following_128/test1/grpo_saved_lora/adapter_model.safetensors",
     framework="pt",
 ) as f:
     # Verify both A and B are non zero
@@ -311,7 +311,7 @@ output = (
     model.fast_generate(
         text,
         sampling_params=sampling_params,
-        lora_request=model.load_lora("instruction_following/test8/grpo_saved_lora"),
+        lora_request=model.load_lora("instruction_following_128/test1/grpo_saved_lora"),
     )[0]
     .outputs[0]
     .text
@@ -325,7 +325,7 @@ print("#" * 50)
 # %%
 # Merge to 16bit
 model.save_pretrained_merged(
-    "instruction_following/test8/qwen_finetune_16bit",
+    "instruction_following_128/test1/qwen_finetune_16bit",
     tokenizer,
     save_method="merged_16bit",
 )
@@ -334,12 +334,12 @@ model.save_pretrained_merged(
 # model.save_pretrained_merged("qwen_finetune_4bit", tokenizer, save_method = "merged_4bit",)
 
 # Just LoRA adapters
-model.save_pretrained("instruction_following/test8/qwen_lora")
-tokenizer.save_pretrained("instruction_following/test8/qwen_lora")
+model.save_pretrained("instruction_following_128/test1/qwen_lora")
+tokenizer.save_pretrained("instruction_following_128/test1/qwen_lora")
 
 model.save_pretrained_gguf(
-    "instruction_following/test8/qwen_finetune", tokenizer, quantization_method="f16"
+    "instruction_following_128/test1/qwen_finetune", tokenizer, quantization_method="f16"
 )
 model.save_pretrained_gguf(
-    "instruction_following/test8/qwen_finetune", tokenizer, quantization_method="bf16"
+    "instruction_following_128/test1/qwen_finetune", tokenizer, quantization_method="bf16"
 )
