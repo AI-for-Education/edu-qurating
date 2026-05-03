@@ -29,6 +29,7 @@ run_names = [
     "reasoning",
     "instruction_following",
     "instruction_following_128",
+    "interleaved_scoring",
 ]
 
 s5cmd_path = str(ROOT / ".venv/bin/s5cmd")
