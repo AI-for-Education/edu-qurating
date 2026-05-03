@@ -112,7 +112,7 @@ class QuratingReward:
             else:
                 use_completions = completions
 
-            return self.reward(prompts, use_completions, score_spec, score_cap)
+            return self.reward(prompts, use_completions, score_spec, score_cap, **kwargs)
 
         reward_fun.__name__ = name
         return reward_fun
@@ -123,6 +123,7 @@ class QuratingReward:
         completions: list[list[dict[str, str]]],
         score_spec: dict[str, dict[str | tuple, float | int]],
         score_cap: tuple[float, float],
+        **kwargs,
     ):
         responses = [completion[0]["content"] for completion in completions]
         ds = Dataset.from_list([{"text": resp} for resp in responses])
@@ -131,16 +132,35 @@ class QuratingReward:
         for model_type, weight_dict in score_spec.items():
             for label, weight in weight_dict.items():
                 if isinstance(label, str):
+                    # normal behaviour
+                    # - we take the score from the same dimension for all rows
                     label_score_vec = np.array(scores[model_type][f"{label}_average"])
                 elif isinstance(label, tuple):
+                    # extended behavior
+                    # - we match individual rows to their correswponding scoring dimension
+                    #   based on the row_matcher specification
+                    # we initialise with all nans so that the score vectors are all the same shape
+                    # but we use nanmean to ignore non-matching row-score_dimension combinations
+                    label_score_vec = np.full(len(responses), fill_value=np.nan)
                     label, row_matcher = label
+                    for column, value in row_matcher:
+                        if column not in kwargs:
+                            raise ValueError(
+                                f"matcher column {column} is not in dataset"
+                            )
+                        filt = [
+                            i for i, row in enumerate(kwargs[column]) if row == value
+                        ]
+                        label_score_vec[filt] = np.array(
+                            scores[model_type][f"{label}_average"]
+                        )[filt]
                 else:
                     raise ValueError("label must be a string or a tuple")
                 capped_score_vec = weight * np.maximum(
                     np.minimum(label_score_vec, score_cap[1]), score_cap[0]
                 )
                 score_holders.append(capped_score_vec)
-        scores_arr = np.mean(score_holders, axis=0)
+        scores_arr = np.nanmean(score_holders, axis=0)
         return scores_arr.tolist()
 
     def score(self, dataset: Dataset, model_types: str | list[str] | None = None):

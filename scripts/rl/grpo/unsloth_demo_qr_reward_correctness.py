@@ -30,6 +30,7 @@ GOOD_RESPONSE_COLUMN = "example_of_good_answer"
 # %%
 # load qurating reward functions
 qr_reward = QuratingReward()
+score_cap = (-np.inf, 24.0)
 
 score_spec_core_primary = {
     "core_ed": {
@@ -44,22 +45,37 @@ score_spec_core_primary = {
 score_spec_fl_teacher = {
     **{
         "fl_teacher": {
-            ("1_oral_language_vocabulary", {"criterion": "pairwise_1_oral_language_vocabulary"}): 1,
-            ("2_phonological_awareness", {"criterion": "pairwise_2_phonological_awareness"}): 1,
-            ("3_systematic_phonics", {"criterion": "pairwise_3_systematic_phonics"}): 1,
-            ("4_reading_fluency", {"criterion": "pairwise_4_reading_fluency"}): 1,
-            ("5_reading_comprehension", {"criterion": "pairwise_5_reading_comprehension"}): 1,
-            ("6_writing_encoding", {"criterion": "pairwise_6_writing_encoding"}): 1,
-            ("7_pedagogical_quality", {"criterion": "pairwise_7_pedagogical_quality"}): 1,
+            (
+                "1_oral_language_vocabulary",
+                (("criterion", "pairwise_1_oral_language_vocabulary"),),
+            ): 1,
+            (
+                "2_phonological_awareness",
+                (("criterion", "pairwise_2_phonological_awareness"),),
+            ): 1,
+            (
+                "3_systematic_phonics",
+                (("criterion", "pairwise_3_systematic_phonics"),),
+            ): 1,
+            ("4_reading_fluency", (("criterion", "pairwise_4_reading_fluency"),)): 1,
+            (
+                "5_reading_comprehension",
+                (("criterion", "pairwise_5_reading_comprehension"),),
+            ): 1,
+            ("6_writing_encoding", (("criterion", "pairwise_6_writing_encoding"),)): 1,
+            (
+                "7_pedagogical_quality",
+                (("criterion", "pairwise_7_pedagogical_quality"),),
+            ): 1,
         }
     }
 }
 
 reward_fun_core_primary = qr_reward.reward_fun_generator(
-    score_spec_core_primary, name="core_ed", score_cap=(-np.inf, 12.0)
+    score_spec_core_primary, name="core_ed", score_cap=score_cap
 )
 reward_fun_fl_teacher = qr_reward.reward_fun_generator(
-    score_spec_fl_teacher, name="systematic_phonics", score_cap=(-np.inf, 12.0)
+    score_spec_fl_teacher, name="fl_teacher_interleaved", score_cap=score_cap
 )
 
 
@@ -204,8 +220,18 @@ reward_fun_core_primary(
 
 correctness_reward(
     prompts=[dataset[0]["prompt"]],
-    completions=[[{"role": "assistant", "content": dataset[0]["Bad Response"]}]],
+    completions=[[{"role": "assistant", "content": dataset[0][GOOD_RESPONSE_COLUMN]}]],
     **{GOOD_RESPONSE_COLUMN: [dataset[0][GOOD_RESPONSE_COLUMN]]},
+)
+
+reward_fun_fl_teacher(
+    prompts=[[{"content": ""}]] * 3,
+    completions=[[{"role": "assistant", "content": "ab " * 1000}]] * 3,
+    criterion=[
+        "pairwise_1_oral_language_vocabulary",
+        "pairwise_2_phonological_awareness",
+        "pairwise_3_systematic_phonics",
+    ],
 )
 
 # %%
@@ -258,7 +284,7 @@ training_args = GRPOConfig(
     max_steps=2000,
     save_steps=100,
     report_to="none",  # Can use Weights & Biases
-    output_dir="instruction_following_128/test1/outputs",
+    output_dir="interleaved_scoring/test2/outputs",
     # For optional training + evaluation
     # fp16_full_eval = True,
     # per_device_eval_batch_size = 4,
@@ -289,12 +315,12 @@ trainer = GRPOTrainer(
 trainer.train()
 
 # %%
-model.save_lora("instruction_following_128/test1/grpo_saved_lora")
+model.save_lora("interleaved_scoring/test2/grpo_saved_lora")
 
 # %%
 tensors = {}
 with safe_open(
-    "instruction_following_128/test1/grpo_saved_lora/adapter_model.safetensors",
+    "interleaved_scoring/test2/grpo_saved_lora/adapter_model.safetensors",
     framework="pt",
 ) as f:
     # Verify both A and B are non zero
@@ -325,7 +351,7 @@ output = (
     model.fast_generate(
         text,
         sampling_params=sampling_params,
-        lora_request=model.load_lora("instruction_following_128/test1/grpo_saved_lora"),
+        lora_request=model.load_lora("interleaved_scoring/test2/grpo_saved_lora"),
     )[0]
     .outputs[0]
     .text
@@ -339,7 +365,7 @@ print("#" * 50)
 # %%
 # Merge to 16bit
 model.save_pretrained_merged(
-    "instruction_following_128/test1/qwen_finetune_16bit",
+    "interleaved_scoring/test2/qwen_finetune_16bit",
     tokenizer,
     save_method="merged_16bit",
 )
@@ -348,16 +374,16 @@ model.save_pretrained_merged(
 # model.save_pretrained_merged("qwen_finetune_4bit", tokenizer, save_method = "merged_4bit",)
 
 # Just LoRA adapters
-model.save_pretrained("instruction_following_128/test1/qwen_lora")
-tokenizer.save_pretrained("instruction_following_128/test1/qwen_lora")
+model.save_pretrained("interleaved_scoring/test2/qwen_lora")
+tokenizer.save_pretrained("interleaved_scoring/test2/qwen_lora")
 
 model.save_pretrained_gguf(
-    "instruction_following_128/test1/qwen_finetune",
+    "interleaved_scoring/test2/qwen_finetune",
     tokenizer,
     quantization_method="f16",
 )
 model.save_pretrained_gguf(
-    "instruction_following_128/test1/qwen_finetune",
+    "interleaved_scoring/test2/qwen_finetune",
     tokenizer,
     quantization_method="bf16",
 )

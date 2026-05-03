@@ -2,13 +2,14 @@
 import gc
 from pathlib import Path
 import re
+from hashlib import shake_256
 
 import jsonlines
 import pandas as pd
-import torch
+import numpy as np
 from unsloth import FastLanguageModel
 from unsloth.chat_templates import get_chat_template
-from datasets import Dataset
+from datasets import Dataset, load_from_disk
 from vllm import SamplingParams
 
 from qurating.constants import DATA_DIR
@@ -16,6 +17,7 @@ from qurating.constants import DATA_DIR
 from chat_templates import ReasoningStudentMaterial
 
 evals_dir = DATA_DIR / "education_evals"
+HERE = Path(__file__).resolve().parent
 
 max_seq_length = 2048
 max_prompt_length = 256
@@ -26,6 +28,13 @@ qwen3_response_formatter = re.compile(
 )
 
 pad_token = "<|PAD_TOKEN|>"
+
+CONTENT_COLUMN = "content"
+GOOD_RESPONSE_COLUMN = "example_of_good_answer"
+TASK_COLUMN = "criterion"
+SUBTASK_COLUMN = "family"
+TOPIC_COLUMN = "category"
+INDEX_COLUMN = "index"
 
 
 # %%
@@ -52,46 +61,46 @@ def parse_generated(generated, test_config, tokenizer):
 
 # %%
 test_configs = {
-    "test1": {
-        "description": "core_ed-fl_teacher",
-        "checkpoints": [
-            "test1/outputs/checkpoint-1000",
-            "test1/outputs/checkpoint-2000",
-        ],
-        "system_prompt": "/flnteach",
-        "chat_template": "qwen-3",
-        "group_idx": 0,
-    },
-    "test2": {
-        "description": "core_ed-fl_teacher-no_ed_level",
-        "checkpoints": [
-            "test2/outputs/checkpoint-1000",
-            "test2/outputs/checkpoint-2000",
-        ],
-        "system_prompt": "/flnteach",
-        "chat_template": "qwen-3",
-        "group_idx": 0,
-    },
-    "test3": {
-        "description": "core_ed-fl_teacher-no_ed_level-length_target",
-        "checkpoints": [
-            "test3/outputs/checkpoint-1000",
-            "test3/outputs/checkpoint-2000",
-        ],
-        "system_prompt": "/flnteach",
-        "chat_template": "qwen-3",
-        "group_idx": 0,
-    },
-    "test4": {
-        "description": "core_ed_reduced-fl_teacher-no_ed_level-length_target",
-        "checkpoints": [
-            "test4/outputs/checkpoint-1000",
-            "test4/outputs/checkpoint-2000",
-        ],
-        "system_prompt": "/flnteach",
-        "chat_template": "qwen-3",
-        "group_idx": 0,
-    },
+    # "test1": {
+    #     "description": "core_ed-fl_teacher",
+    #     "checkpoints": [
+    #         "test1/outputs/checkpoint-1000",
+    #         "test1/outputs/checkpoint-2000",
+    #     ],
+    #     "system_prompt": "/flnteach",
+    #     "chat_template": "qwen-3",
+    #     "group_idx": 0,
+    # },
+    # "test2": {
+    #     "description": "core_ed-fl_teacher-no_ed_level",
+    #     "checkpoints": [
+    #         "test2/outputs/checkpoint-1000",
+    #         "test2/outputs/checkpoint-2000",
+    #     ],
+    #     "system_prompt": "/flnteach",
+    #     "chat_template": "qwen-3",
+    #     "group_idx": 0,
+    # },
+    # "test3": {
+    #     "description": "core_ed-fl_teacher-no_ed_level-length_target",
+    #     "checkpoints": [
+    #         "test3/outputs/checkpoint-1000",
+    #         "test3/outputs/checkpoint-2000",
+    #     ],
+    #     "system_prompt": "/flnteach",
+    #     "chat_template": "qwen-3",
+    #     "group_idx": 0,
+    # },
+    # "test4": {
+    #     "description": "core_ed_reduced-fl_teacher-no_ed_level-length_target",
+    #     "checkpoints": [
+    #         "test4/outputs/checkpoint-1000",
+    #         "test4/outputs/checkpoint-2000",
+    #     ],
+    #     "system_prompt": "/flnteach",
+    #     "chat_template": "qwen-3",
+    #     "group_idx": 0,
+    # },
     "test5": {
         "description": "core_ed_reduced-phonological_awareness-length_target",
         "checkpoints": [
@@ -232,28 +241,48 @@ test_configs = {
         "chat_template": "qwen-3",
         "group_idx": 0,
     },
-    "instruction_following_128/test1": {
-        "description": "core_ed_reduced-systematic_phonics-instruction_following_rank-128",
+    # "instruction_following_128/test1": {
+    #     "description": "core_ed_reduced-systematic_phonics-instruction_following_rank-128",
+    #     "checkpoints": [
+    #         "instruction_following_128/test1/outputs/checkpoint-1000",
+    #         "instruction_following_128/test1/outputs/checkpoint-2000",
+    #     ],
+    #     "system_prompt": "/flnteach",
+    #     "chat_template": "qwen-3",
+    #     "group_idx": 0,
+    # },
+    "interleaved_scoring/test1": {
+        "description": "core_ed_reduced-flteach_interleaved_scoring-instruction_following",
         "checkpoints": [
-            "instruction_following_128/test1/outputs/checkpoint-1000",
-            "instruction_following_128/test1/outputs/checkpoint-2000",
+            "interleaved_scoring/test1/outputs/checkpoint-1000",
+            "interleaved_scoring/test1/outputs/checkpoint-2000",
         ],
         "system_prompt": "/flnteach",
         "chat_template": "qwen-3",
         "group_idx": 0,
     },
-    "reasoning/test1": {
-        "description": "reasoning-core_ed_fl_teacher-material-core_ed_fl_student",
+    "interleaved_scoring/test2": {
+        "description": "core_ed_reduced-flteach_interleaved_scoring_cap24-instruction_following",
         "checkpoints": [
-            "reasoning/test1/outputs/checkpoint-1000",
-            "reasoning/test1/outputs/checkpoint-2000",
+            "interleaved_scoring/test2/outputs/checkpoint-1000",
+            "interleaved_scoring/test2/outputs/checkpoint-2000",
         ],
-        "system_prompt": ReasoningStudentMaterial().render_system_prompt(),
-        "chat_template": ReasoningStudentMaterial().chat_template,
-        "formatter": ReasoningStudentMaterial().formatter,
-        "formatter_requires_tokenizer": True,
-        "group_idx": {"reasoning": 0, "student_material": 2, "response": 3},
+        "system_prompt": "/flnteach",
+        "chat_template": "qwen-3",
+        "group_idx": 0,
     },
+    # "reasoning/test1": {
+    #     "description": "reasoning-core_ed_fl_teacher-material-core_ed_fl_student",
+    #     "checkpoints": [
+    #         "reasoning/test1/outputs/checkpoint-1000",
+    #         "reasoning/test1/outputs/checkpoint-2000",
+    #     ],
+    #     "system_prompt": ReasoningStudentMaterial().render_system_prompt(),
+    #     "chat_template": ReasoningStudentMaterial().chat_template,
+    #     "formatter": ReasoningStudentMaterial().formatter,
+    #     "formatter_requires_tokenizer": True,
+    #     "group_idx": {"reasoning": 0, "student_material": 2, "response": 3},
+    # },
     "base_model": {
         "description": "Qwen3-4B-Base",
         "checkpoints": ["unsloth/Qwen3-4B-Base"],
@@ -262,13 +291,27 @@ test_configs = {
     },
 }
 
-# %%
-test_ds = Dataset.load_from_disk(
-    str(evals_dir / "education_evals_combined_literacy_grade0-3_test.parquet")
-)
-test_ds
 
-prompts = list(test_ds["Rendered Prompt"])
+# %%
+def hash_extra(row):
+    return shake_256(
+        (
+            f"{row['rep']}"
+            f"{row[CONTENT_COLUMN]}"
+            f"{row[GOOD_RESPONSE_COLUMN]}"
+            f"{row[TOPIC_COLUMN]}"
+        ).encode("utf-8")
+    ).hexdigest(8)
+
+
+test_ds = load_from_disk(str(evals_dir / "flteach_grpo_dataset_train-test"))["test"]
+test_ds = test_ds.map(lambda row: {INDEX_COLUMN: f"{row['hash']}_{hash_extra(row)}"})
+
+test_ds = test_ds.select(range(1000))
+
+prompts = list(test_ds[CONTENT_COLUMN])
+
+print(test_ds)
 
 # %%
 base_model, base_tokenizer = FastLanguageModel.from_pretrained(
@@ -302,12 +345,18 @@ model = FastLanguageModel.get_peft_model(
     ],
 )
 # %%
-cache_file = Path("GRPO_tests.jsonl")
+cache_file = HERE / "GRPO_tests_flteach_grpo_dataset.jsonl"
 res_list = []
 if cache_file.exists():
     with jsonlines.open(cache_file) as reader:
-        for obj in reader:
-            res_list.append(obj)
+        try:
+            for obj in reader:
+                res_list.append(obj)
+        except:
+            pass
+with jsonlines.open(cache_file, "w") as writer:
+    writer.write_all(res_list)
+
 
 resume_point = {}
 for test_name, test_config in test_configs.items():
@@ -320,6 +369,7 @@ for test_name, test_config in test_configs.items():
             and rd["checkpoint"] == Path(checkpoint).name
         )
 
+BATCH_SIZE = 40
 for test_name, test_config in test_configs.items():
     for checkpoint in test_config["checkpoints"]:
         resume_point_ckpt = resume_point[test_name][checkpoint]
@@ -333,14 +383,17 @@ for test_name, test_config in test_configs.items():
                 tokenizer = get_chat_template(tokenizer, chat_template=chat_template)
             else:
                 tokenizer.chat_template = chat_template()
-            lora_request = model.load_lora(checkpoint)
+            lora_request = model.load_lora(str(HERE / checkpoint))
 
         system_prompt = test_config.get("system_prompt")
         resume_ds = test_ds.select(range(resume_point_ckpt, len(test_ds)))
-        for batchi, batch_ds in enumerate(resume_ds.batch(batch_size=20)):
-            print(f"Test Name: {test_name}; checkpoint: {checkpoint}; batch: {batchi}")
+        nbatches = int(np.ceil(len(resume_ds) / BATCH_SIZE))
+        for batchi, batch_ds in enumerate(resume_ds.batch(batch_size=BATCH_SIZE)):
+            print(
+                f"Test Name: {test_name}; checkpoint: {checkpoint}; batch: {batchi} / {nbatches}"
+            )
 
-            prompts = batch_ds["Rendered Prompt"]
+            prompts = batch_ds[CONTENT_COLUMN]
             texts = []
             for prompt in prompts:
                 messages = []
@@ -373,7 +426,7 @@ for test_name, test_config in test_configs.items():
                     lora_request=lora_request,
                 )
             for response, prompt, text, prompt_index in zip(
-                outputs, prompts, texts, batch_ds["index"]
+                outputs, prompts, texts, batch_ds[INDEX_COLUMN]
             ):
                 if not isinstance(response, str):
                     response = response.outputs[0].text
@@ -404,9 +457,9 @@ for test_name, test_config in test_configs.items():
 res_df = pd.DataFrame(res_list)
 test_df = test_ds.to_pandas()
 
-merge_cols = ["Task Name", "Subtask Name", "Topic", "Good Response"]
+merge_cols = [TASK_COLUMN, SUBTASK_COLUMN, TOPIC_COLUMN, GOOD_RESPONSE_COLUMN]
 res_df[merge_cols] = (
-    test_df.set_index("index").loc[res_df["prompt_index"], merge_cols].to_numpy()
+    test_df.set_index(INDEX_COLUMN).loc[res_df["prompt_index"], merge_cols].to_numpy()
 )
 
 pivot_df = res_df.pivot(
@@ -416,6 +469,6 @@ pivot_df = res_df.pivot(
 ).reset_index()
 
 
-pivot_df.to_csv("GRPO_tests_FLN.csv", encoding="utf_8_sig")
+pivot_df.to_csv(HERE / "GRPO_tests_FLN_flteach_grpo_dataset.csv", encoding="utf_8_sig")
 
 # %%

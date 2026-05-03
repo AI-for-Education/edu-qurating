@@ -307,3 +307,37 @@ sudo docker run --gpus all -v ./served_models:/models -p 7654:7654 ghcr.io/ggml-
         - reward formatting that matches good example (3 points)
         - reawrd instruction following compared to good example (3 points)
     - qr score cap 12
+
+### interleaved_scoring/test1
+- model
+    - qwen3-4b-base
+    - lora rank 32
+- reward
+    - core_ed:
+        - pedagogical_structure: 1
+        - lesson_engagement: 0.25
+        - factual_accuracy: 1
+    - fl_teacher:
+        - all_interleaved: 1
+    - correctness_reward
+        - reward length that matches good example (3 points)
+        - reward formatting that matches good example (3 points)
+        - reawrd instruction following compared to good example (3 points)
+    - qr score cap 12
+
+### interleaved_scoring/test2
+- model
+    - qwen3-4b-base
+    - lora rank 32
+- reward
+    - core_ed:
+        - pedagogical_structure: 1
+        - lesson_engagement: 0.25
+        - factual_accuracy: 1
+    - fl_teacher:
+        - all_interleaved: 1
+    - correctness_reward
+        - reward length that matches good example (3 points)
+        - reward formatting that matches good example (3 points)
+        - reawrd instruction following compared to good example (3 points)
+    - qr score cap 24
