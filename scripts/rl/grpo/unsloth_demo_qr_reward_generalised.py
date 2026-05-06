@@ -1,8 +1,9 @@
 # %%
 from pathlib import Path
 from itertools import chain
+import logging
 
-from unsloth import FastLanguageModel
+from unsloth import FastLanguageModel, FastVisionModel
 from unsloth.chat_templates import get_chat_template
 from trl import GRPOConfig, GRPOTrainer  # type: ignore
 import numpy as np
@@ -20,7 +21,7 @@ from qurating.constants import DATA_DIR, ROOT
 
 register_models(ROOT / "custom_models.yaml")
 
-USE_CFG = "interleaved_scoring/test1"
+USE_CFG = "gemma4/test1"
 
 HERE = Path(__file__).resolve().parent
 CHECKPOINTS_DIR = DATA_DIR / "grpo_checkpoints"
@@ -51,8 +52,45 @@ elif dataset_variant == "original":
 else:
     raise ValueError("DATASET must be one of 'interleaved' or 'original")
 
-if "Qwen3" in cfg["base_model"]:
+if "qwen3-" in cfg["base_model"].lower():
     chat_template_name = "qwen-3"
+    FastModel = FastLanguageModel
+    fast_inference = True
+    learning_rate = 5e-6
+    per_device_train_batch_size = 4
+    max_steps = 2000
+    save_steps = 100
+    extra_grpo_kwargs = {}
+elif "qwen3.5-" in cfg["base_model"].lower():
+    chat_template_name = "qwen-3"
+    FastModel = FastVisionModel
+    fast_inference = False
+    learning_rate = 5e-6
+    per_device_train_batch_size = 4
+    max_steps = 2000
+    save_steps = 100
+    extra_grpo_kwargs = {}
+elif "gemma-4" in cfg["base_model"].lower():
+    chat_template_name = "gemma-4"
+    FastModel = FastVisionModel
+    fast_inference = False
+    learning_rate = 5e-5
+    per_device_train_batch_size = 4
+    max_steps = 2000
+    save_steps = 100
+    extra_grpo_kwargs = dict(
+        epsilon = 0.2,
+        epsilon_high = 0.28, # one sided
+        delta = 1.5, # two sided
+        loss_type = 'bnpo',
+        mask_truncated_completions = True
+    )
+else:
+    raise ValueError("base_model must be in qwen-3 or gemma-4 families")
+
+
+# hide warning about processor_kwargs from transformers v5
+logging.getLogger("transformers.processing_utils").setLevel(logging.ERROR)
 
 # %%
 # define and store extra non-qurating reward funs
@@ -244,7 +282,7 @@ elif dataset_variant == "original":
         str(evals_dir / "education_evals_combined_literacy_grade0-3_test.parquet")
     )
 
-prompts = list(test_ds[CONTENT_COLUMN]) # type: ignore
+prompts = list(test_ds[CONTENT_COLUMN])  # type: ignore
 test_promptiter = iter(prompts)
 
 print(test_ds)
@@ -269,17 +307,18 @@ for reward_fun in all_reward_funs.values():
 
 
 # %%
-model, tokenizer = FastLanguageModel.from_pretrained(
+model, tokenizer = FastModel.from_pretrained(
     model_name=cfg["base_model"],
     max_seq_length=max_seq_length,
     load_in_4bit=False,  # False for LoRA 16bit
-    fast_inference=True,  # Enable vllm fast inference
+    fast_inference=fast_inference,  # Enable vllm fast inference
     max_lora_rank=lora_rank,
     gpu_memory_utilization=0.8,  # Reduce if out of memory
 )
-tokenizer = get_chat_template(tokenizer, chat_template=chat_template_name)
+if chat_template_name is not None:
+    tokenizer = get_chat_template(tokenizer, chat_template=chat_template_name)
 
-model = FastLanguageModel.get_peft_model(
+model = FastModel.get_peft_model(
     model,
     r=lora_rank,  # Choose any number > 0 ! Suggested 8, 16, 32, 64, 128
     target_modules=[
@@ -312,9 +351,11 @@ tokenizer.apply_chat_template(
 # %%
 tokenized = dataset.map(
     lambda x: {
-        "tokens": tokenizer.apply_chat_template(
-            x["prompt"], add_generation_prompt=True, tokenize=True
-        )
+        "tokens": tokenizer(
+            text=tokenizer.apply_chat_template(
+                x["prompt"], add_generation_prompt=True, tokenize=False
+            )
+        )["input_ids"]
     },
     batched=True,
 )
@@ -332,41 +373,44 @@ print("Max Length = ", maximum_length)
 max_prompt_length = maximum_length + 1  # + 1 just in case!
 max_completion_length = max_seq_length - max_prompt_length
 
-vllm_sampling_params = SamplingParams(
-    min_p=0.1,
-    top_p=1.0,
-    top_k=-1,
-    seed=3407,
-    stop=[tokenizer.eos_token],
-    include_stop_str_in_output=True,
-)
-
-training_args = GRPOConfig(
-    vllm_sampling_params=vllm_sampling_params, # type: ignore
+grpo_kwargs = dict(
     temperature=1.0,
-    learning_rate=5e-6,
+    learning_rate=learning_rate,
     weight_decay=0.001,
     warmup_ratio=0.1,
     lr_scheduler_type="linear",
     optim="adamw_8bit",
     logging_steps=1,
-    per_device_train_batch_size=4,
+    per_device_train_batch_size=per_device_train_batch_size,
     gradient_accumulation_steps=1,  # Increase to 4 for smoother training
     num_generations=4,  # Decrease if out of memory
-    max_prompt_length=max_prompt_length,
+    # max_prompt_length=max_prompt_length,
     max_completion_length=max_completion_length,
     num_train_epochs=1,  # Set to 1 for a full training run
-    max_steps=2000,
-    save_steps=100,
+    max_steps=max_steps,
+    save_steps=save_steps,
     report_to="none",  # Can use Weights & Biases
     output_dir=str(CHECKPOINTS_DIR / USE_CFG),
+    **extra_grpo_kwargs,
     # For optional training + evaluation
     # fp16_full_eval = True,
     # per_device_eval_batch_size = 4,
     # eval_accumulation_steps = 1,
     # eval_strategy = "steps",
-    # eval_steps = 1,
+    # eval_steps = 1,    
 )
+if fast_inference:
+    vllm_sampling_params = SamplingParams(
+        min_p=0.1,
+        top_p=1.0,
+        top_k=-1,
+        seed=3407,
+        stop=[tokenizer.eos_token],
+        include_stop_str_in_output=True,
+    )
+    grpo_kwargs["vllm_sampling_params"] = vllm_sampling_params # type: ignore
+
+training_args = GRPOConfig(**grpo_kwargs) # type: ignore
 
 # For optional training + evaluation
 # new_dataset = dataset.train_test_split(test_size = 0.01)
@@ -422,7 +466,9 @@ output = (
     model.fast_generate(
         text,
         sampling_params=sampling_params,
-        lora_request=model.load_lora(str(CHECKPOINTS_DIR / USE_CFG / "grpo_saved_lora")),
+        lora_request=model.load_lora(
+            str(CHECKPOINTS_DIR / USE_CFG / "grpo_saved_lora")
+        ),
     )[0]
     .outputs[0]
     .text

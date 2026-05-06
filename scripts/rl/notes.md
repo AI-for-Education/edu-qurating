@@ -2,6 +2,11 @@
 sudo apt install cmake libssl-dev libcurl4-openssl-dev
 ```
 
+To enable gemma 4 support we need to override the resolution clash between trl>=0.24.0 and unsloth by manually upgrading trl with uv pip install
+```
+uv pip install --upgrade --no-deps "trl>=0.28.0"
+```
+
 serve llm for judge-based rewards with llama.cpp docker image
 ```
 sudo docker run --gpus all -v ./served_models:/models -p 7654:7654 ghcr.io/ggml-org/llama.cpp:server-cuda -hf unsloth/gemma-4-E4B-it-GGUF --port 7654 --host 0.0.0.0
