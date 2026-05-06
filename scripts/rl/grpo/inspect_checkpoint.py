@@ -16,7 +16,6 @@ from qurating.constants import DATA_DIR
 
 from chat_templates import ReasoningStudentMaterial
 
-evals_dir = DATA_DIR / "education_evals"
 HERE = Path(__file__).resolve().parent
 
 max_seq_length = 2048
@@ -29,13 +28,27 @@ qwen3_response_formatter = re.compile(
 
 pad_token = "<|PAD_TOKEN|>"
 
-CONTENT_COLUMN = "content"
-GOOD_RESPONSE_COLUMN = "example_of_good_answer"
-TASK_COLUMN = "criterion"
-SUBTASK_COLUMN = "family"
-TOPIC_COLUMN = "category"
-INDEX_COLUMN = "index"
+DATASET = "interleaved"
 
+
+if DATASET == "interleaved":
+    evals_dir = DATA_DIR / "education_evals"
+    CONTENT_COLUMN = "content"
+    GOOD_RESPONSE_COLUMN = "example_of_good_answer"
+    TASK_COLUMN = "criterion"
+    SUBTASK_COLUMN = "family"
+    TOPIC_COLUMN = "category"
+    INDEX_COLUMN = "index"
+elif DATASET == "original":
+    evals_dir = DATA_DIR / "education_evals_original"
+    CONTENT_COLUMN = "Rendered Prompt"
+    GOOD_RESPONSE_COLUMN = "Good Response"
+    TASK_COLUMN = "Task Name"
+    SUBTASK_COLUMN = "Subtask Name"
+    TOPIC_COLUMN = "Topic"
+    INDEX_COLUMN = "index"
+else:
+    raise ValueError("DATASET must be one of 'interleaved' or 'original")
 
 # %%
 def parse_generated(generated, test_config, tokenizer):
@@ -241,6 +254,16 @@ test_configs = {
         "chat_template": "qwen-3",
         "group_idx": 0,
     },
+    "instruction_following/test9": {
+        "description": "core_ed_reduced-flteach_all-instruction_following",
+        "checkpoints": [
+            "instruction_following/test9/outputs/checkpoint-1000",
+            "instruction_following/test9/outputs/checkpoint-2000",
+        ],
+        "system_prompt": "/flnteach",
+        "chat_template": "qwen-3",
+        "group_idx": 0,
+    },
     # "instruction_following_128/test1": {
     #     "description": "core_ed_reduced-systematic_phonics-instruction_following_rank-128",
     #     "checkpoints": [
@@ -303,11 +326,14 @@ def hash_extra(row):
         ).encode("utf-8")
     ).hexdigest(8)
 
-
-test_ds = load_from_disk(str(evals_dir / "flteach_grpo_dataset_train-test"))["test"]
-test_ds = test_ds.map(lambda row: {INDEX_COLUMN: f"{row['hash']}_{hash_extra(row)}"})
-
-test_ds = test_ds.select(range(1000))
+if DATASET == "interleaved":
+    test_ds = load_from_disk(str(evals_dir / "flteach_grpo_dataset_train-test"))["test"]
+    test_ds = test_ds.map(lambda row: {INDEX_COLUMN: f"{row['hash']}_{hash_extra(row)}"})
+    test_ds = test_ds.select(range(1000))
+elif DATASET == "original":
+    test_ds = load_from_disk(
+        str(evals_dir / "education_evals_combined_literacy_grade0-3_test.parquet")
+    )
 
 prompts = list(test_ds[CONTENT_COLUMN])
 
@@ -345,7 +371,11 @@ model = FastLanguageModel.get_peft_model(
     ],
 )
 # %%
-cache_file = HERE / "GRPO_tests_flteach_grpo_dataset.jsonl"
+if DATASET == "interleaved":
+    cache_file = HERE / "GRPO_tests_flteach_grpo_dataset.jsonl"
+elif DATASET == "original":
+    cache_file = HERE / "GRPO_tests.jsonl"
+    
 res_list = []
 if cache_file.exists():
     with jsonlines.open(cache_file) as reader:
@@ -466,9 +496,12 @@ pivot_df = res_df.pivot(
     columns=["test_name", "checkpoint", "description"],
     index=["prompt_index", "prompt", *merge_cols],
     values=["response"],
-).reset_index()
+).reset_index().rename(columns={GOOD_RESPONSE_COLUMN: "Good Response"})
 
 
-pivot_df.to_csv(HERE / "GRPO_tests_FLN_flteach_grpo_dataset.csv", encoding="utf_8_sig")
+if DATASET == "interleaved":
+    pivot_df.to_csv(HERE / "GRPO_tests_FLN_flteach_grpo_dataset.csv", encoding="utf_8_sig")
+elif DATASET == "original":
+    pivot_df.to_csv(HERE / "GRPO_tests_FLN.csv", encoding="utf_8_sig")
 
 # %%

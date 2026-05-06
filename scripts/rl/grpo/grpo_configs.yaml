@@ -1,0 +1,405 @@
+#### Initial tests. All FLTeach dims together
+test1:
+  base_model: "unsloth/Qwen3-4B-Base"
+  lora_rank: 32
+  dataset: original
+  reward:
+    qurating:
+      - name: core_ed
+        spec:
+          core_ed:
+            pedagogical_structure: 1
+            lesson_engagement: 0.25
+            factual_accuracy: 1
+            education_level_primary: 0.25
+        score_cap: [null, 12.0]
+      - name: fl_teacher
+        spec: 
+          fl_teacher:
+            $all: 1
+        score_cap: [null, 12.0]
+test2:
+  base_model: "unsloth/Qwen3-4B-Base"
+  lora_rank: 32
+  dataset: original
+  reward:
+    qurating:
+      - name: core_ed
+        spec:
+          core_ed:
+            pedagogical_structure: 1
+            lesson_engagement: 0.25
+            factual_accuracy: 1
+        score_cap: [null, 12.0]
+      - name: fl_teacher
+        spec: 
+          fl_teacher:
+            $all: 1
+        score_cap: [null, 12.0]
+test3:
+  base_model: "unsloth/Qwen3-4B-Base"
+  lora_rank: 32
+  dataset: original
+  reward:
+    qurating:
+      - name: core_ed
+        spec:
+          core_ed:
+            pedagogical_structure: 1
+            lesson_engagement: 0.25
+            factual_accuracy: 1
+        score_cap: [null, 12.0]
+      - name: fl_teacher
+        spec: 
+          fl_teacher:
+            $all: 1
+        score_cap: [null, 12.0]
+    extra_functions:
+      - length_target
+test4:
+  base_model: "unsloth/Qwen3-4B-Base"
+  lora_rank: 32
+  dataset: original
+  reward:
+    qurating:
+      - name: core_ed
+        spec:
+          core_ed:
+            pedagogical_structure: 0.1
+            lesson_engagement: 0.25
+            factual_accuracy: 1
+        score_cap: [null, 12.0]
+      - name: fl_teacher
+        spec: 
+          fl_teacher:
+            $all: 1
+        score_cap: [null, 12.0]
+    extra_functions:
+      - length_target
+
+### Secondary tests. Single FLTeach dims
+test5:
+  base_model: "unsloth/Qwen3-4B-Base"
+  lora_rank: 32
+  dataset: original
+  reward:
+    qurating:
+      - name: core_ed
+        spec:
+          core_ed:
+            pedagogical_structure: 0.1
+            lesson_engagement: 0.25
+            factual_accuracy: 1
+        score_cap: [null, 12.0]
+      - name: fl_teacher
+        spec: 
+          fl_teacher:
+            2_phonological_awareness: 1
+        score_cap: [null, 12.0]
+    extra_functions:
+      - length_target
+test6:
+  base_model: "unsloth/Qwen3-4B-Base"
+  lora_rank: 32
+  dataset: original
+  reward:
+    qurating:
+      - name: core_ed
+        spec:
+          core_ed:
+            pedagogical_structure: 0.1
+            lesson_engagement: 0.25
+            factual_accuracy: 1
+        score_cap: [null, 12.0]
+      - name: fl_teacher
+        spec: 
+          fl_teacher:
+            3_systematic_phonics: 1
+        score_cap: [null, 12.0]
+    extra_functions:
+      - length_target
+test7:
+  base_model: "unsloth/Qwen3-4B-Base"
+  lora_rank: 32
+  dataset: original
+  reward:
+    qurating:
+      - name: core_ed
+        spec:
+          core_ed:
+            pedagogical_structure: 0.1
+            lesson_engagement: 0.25
+            factual_accuracy: 1
+        score_cap: [null, 12.0]
+      - name: fl_teacher
+        spec: 
+          fl_teacher:
+            4_reading_fluency: 1
+        score_cap: [null, 12.0]
+    extra_functions:
+      - length_target
+test8:
+  base_model: "unsloth/Qwen3-4B-Base"
+  lora_rank: 32
+  dataset: original
+  reward:
+    qurating:
+      - name: core_ed
+        spec:
+          core_ed:
+            pedagogical_structure: 0.1
+            lesson_engagement: 0.25
+            factual_accuracy: 1
+        score_cap: [null, 12.0]
+      - name: fl_teacher
+        spec: 
+          fl_teacher:
+            5_reading_comprehension: 1
+        score_cap: [null, 12.0]
+    extra_functions:
+      - length_target
+test9:
+  base_model: "unsloth/Qwen3-4B-Base"
+  lora_rank: 32
+  dataset: original
+  reward:
+    qurating:
+      - name: core_ed
+        spec:
+          core_ed:
+            pedagogical_structure: 0.1
+            lesson_engagement: 0.25
+            factual_accuracy: 1
+        score_cap: [null, 12.0]
+      - name: fl_teacher
+        spec: 
+          fl_teacher:
+            6_writing_encoding: 1
+        score_cap: [null, 12.0]
+    extra_functions:
+      - length_target
+test10:
+  base_model: "unsloth/Qwen3-4B-Base"
+  lora_rank: 32
+  dataset: original
+  reward:
+    qurating:
+      - name: core_ed
+        spec:
+          core_ed:
+            pedagogical_structure: 0.1
+            lesson_engagement: 0.25
+            factual_accuracy: 1
+        score_cap: [null, 12.0]
+      - name: fl_teacher
+        spec: 
+          fl_teacher:
+            1_oral_language_vocabulary: 1
+        score_cap: [null, 12.0]
+    extra_functions:
+      - length_target
+
+### 3rd stage of tests. Added correctness / instruction-following reward
+instruction_following/test1:
+  base_model: "unsloth/Qwen3-4B-Base"
+  lora_rank: 32
+  dataset: original
+  reward:
+    qurating:
+      - name: core_ed
+        spec:
+          core_ed:
+            pedagogical_structure: 0.1
+            lesson_engagement: 0.25
+            factual_accuracy: 1
+        score_cap: [null, 8.0]
+      - name: fl_teacher
+        spec: 
+          fl_teacher:
+            6_writing_encoding: 1
+        score_cap: [null, 8.0]
+    extra_functions:
+      - correctness_reward
+instruction_following/test2:
+  base_model: "unsloth/Qwen3-4B-Base"
+  lora_rank: 32
+  dataset: original
+  reward:
+    qurating:
+      - name: core_ed
+        spec:
+          core_ed:
+            pedagogical_structure: 0.1
+            lesson_engagement: 0.25
+            factual_accuracy: 1
+        score_cap: [null, 12.0]
+      - name: fl_teacher
+        spec: 
+          fl_teacher:
+            6_writing_encoding: 1
+        score_cap: [null, 12.0]
+    extra_functions:
+      - correctness_reward
+instruction_following/test3:
+  base_model: "unsloth/Qwen3-4B-Base"
+  lora_rank: 32
+  dataset: original
+  reward:
+    qurating:
+      - name: core_ed
+        spec:
+          core_ed:
+            pedagogical_structure: 0.1
+            lesson_engagement: 0.25
+            factual_accuracy: 1
+        score_cap: [null, 12.0]
+      - name: fl_teacher
+        spec: 
+          fl_teacher:
+            2_phonological_awareness: 1
+        score_cap: [null, 12.0]
+    extra_functions:
+      - correctness_reward
+instruction_following/test4:
+  base_model: "unsloth/Qwen3-4B-Base"
+  lora_rank: 32
+  dataset: original
+  reward:
+    qurating:
+      - name: core_ed
+        spec:
+          core_ed:
+            pedagogical_structure: 0.1
+            lesson_engagement: 0.25
+            factual_accuracy: 1
+        score_cap: [null, 12.0]
+      - name: fl_teacher
+        spec: 
+          fl_teacher:
+            5_reading_comprehension: 1
+        score_cap: [null, 12.0]
+    extra_functions:
+      - correctness_reward
+instruction_following/test5:
+  base_model: "unsloth/Qwen3-4B-Base"
+  lora_rank: 32
+  dataset: original
+  reward:
+    qurating:
+      - name: core_ed
+        spec:
+          core_ed:
+            pedagogical_structure: 0.1
+            lesson_engagement: 0.25
+            factual_accuracy: 1
+        score_cap: [null, 12.0]
+      - name: fl_teacher
+        spec: 
+          fl_teacher:
+            3_systematic_phonics: 1
+        score_cap: [null, 12.0]
+    extra_functions:
+      - correctness_reward
+instruction_following/test6:
+  base_model: "unsloth/Qwen3-4B-Base"
+  lora_rank: 32
+  dataset: original
+  reward:
+    qurating:
+      - name: core_ed
+        spec:
+          core_ed:
+            pedagogical_structure: 0.1
+            lesson_engagement: 0.25
+            factual_accuracy: 1
+        score_cap: [null, 12.0]
+      - name: fl_teacher
+        spec: 
+          fl_teacher:
+            2_phonological_awareness: 1
+        score_cap: [null, 12.0]
+    extra_functions:
+      - correctness_reward
+instruction_following/test7:
+  base_model: "unsloth/Qwen3-4B-Base"
+  lora_rank: 32
+  dataset: original
+  reward:
+    qurating:
+      - name: core_ed
+        spec:
+          core_ed:
+            pedagogical_structure: 0.1
+            lesson_engagement: 0.25
+            factual_accuracy: 1
+        score_cap: [null, 12.0]
+      - name: fl_teacher
+        spec: 
+          fl_teacher:
+            1_oral_language_vocabulary: 1
+        score_cap: [null, 12.0]
+    extra_functions:
+      - correctness_reward
+instruction_following/test8:
+  base_model: "unsloth/Qwen3-4B-Base"
+  lora_rank: 32
+  dataset: original
+  reward:
+    qurating:
+      - name: core_ed
+        spec:
+          core_ed:
+            pedagogical_structure: 0.1
+            lesson_engagement: 0.25
+            factual_accuracy: 1
+        score_cap: [null, 12.0]
+      - name: fl_teacher
+        spec: 
+          fl_teacher:
+            4_reading_fluency: 1
+        score_cap: [null, 12.0]
+    extra_functions:
+      - correctness_reward
+instruction_following/test9:
+  base_model: "unsloth/Qwen3-4B-Base"
+  lora_rank: 32
+  dataset: original
+  reward:
+    qurating:
+      - name: core_ed
+        spec:
+          core_ed:
+            pedagogical_structure: 0.1
+            lesson_engagement: 0.25
+            factual_accuracy: 1
+        score_cap: [null, 12.0]
+      - name: fl_teacher
+        spec: 
+          fl_teacher:
+            $all: 1
+        score_cap: [null, 12.0]
+    extra_functions:
+      - correctness_reward
+
+### Fourth stage of testing. New dataset designed to allow for individual
+### scoring for each item (interleaved scoring)
+interleaved_scoring/test1:
+  base_model: "unsloth/Qwen3-4B-Base"
+  lora_rank: 32
+  dataset: interleaved
+  reward:
+    qurating:
+      - name: core_ed
+        spec:
+          core_ed:
+            pedagogical_structure: 0.1
+            lesson_engagement: 0.25
+            factual_accuracy: 1
+        score_cap: [null, 12.0]
+      - name: fl_teacher
+        spec: 
+          fl_teacher:
+            $all_interleaved: 1
+        score_cap: [null, 12.0]
+    extra_functions:
+      - correctness_reward
