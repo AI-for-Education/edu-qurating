@@ -91,7 +91,7 @@ test5:
             lesson_engagement: 0.25
             factual_accuracy: 1
         score_cap: [null, 12.0]
-      - name: fl_teacher
+      - name: phonological_awareness
         spec: 
           fl_teacher:
             2_phonological_awareness: 1
@@ -111,7 +111,7 @@ test6:
             lesson_engagement: 0.25
             factual_accuracy: 1
         score_cap: [null, 12.0]
-      - name: fl_teacher
+      - name: systematic_phonics
         spec: 
           fl_teacher:
             3_systematic_phonics: 1
@@ -131,7 +131,7 @@ test7:
             lesson_engagement: 0.25
             factual_accuracy: 1
         score_cap: [null, 12.0]
-      - name: fl_teacher
+      - name: reading_fluency
         spec: 
           fl_teacher:
             4_reading_fluency: 1
@@ -151,7 +151,7 @@ test8:
             lesson_engagement: 0.25
             factual_accuracy: 1
         score_cap: [null, 12.0]
-      - name: fl_teacher
+      - name: reading_comprehension
         spec: 
           fl_teacher:
             5_reading_comprehension: 1
@@ -171,7 +171,7 @@ test9:
             lesson_engagement: 0.25
             factual_accuracy: 1
         score_cap: [null, 12.0]
-      - name: fl_teacher
+      - name: writing_encoding
         spec: 
           fl_teacher:
             6_writing_encoding: 1
@@ -191,7 +191,7 @@ test10:
             lesson_engagement: 0.25
             factual_accuracy: 1
         score_cap: [null, 12.0]
-      - name: fl_teacher
+      - name: oral_language_vocabulary
         spec: 
           fl_teacher:
             1_oral_language_vocabulary: 1
@@ -213,7 +213,7 @@ instruction_following/test1:
             lesson_engagement: 0.25
             factual_accuracy: 1
         score_cap: [null, 8.0]
-      - name: fl_teacher
+      - name: writing_encoding
         spec: 
           fl_teacher:
             6_writing_encoding: 1
@@ -233,7 +233,7 @@ instruction_following/test2:
             lesson_engagement: 0.25
             factual_accuracy: 1
         score_cap: [null, 12.0]
-      - name: fl_teacher
+      - name: writing_encoding
         spec: 
           fl_teacher:
             6_writing_encoding: 1
@@ -253,7 +253,7 @@ instruction_following/test3:
             lesson_engagement: 0.25
             factual_accuracy: 1
         score_cap: [null, 12.0]
-      - name: fl_teacher
+      - name: phonological_awareness
         spec: 
           fl_teacher:
             2_phonological_awareness: 1
@@ -273,7 +273,7 @@ instruction_following/test4:
             lesson_engagement: 0.25
             factual_accuracy: 1
         score_cap: [null, 12.0]
-      - name: fl_teacher
+      - name: reading_comprehension
         spec: 
           fl_teacher:
             5_reading_comprehension: 1
@@ -293,7 +293,7 @@ instruction_following/test5:
             lesson_engagement: 0.25
             factual_accuracy: 1
         score_cap: [null, 12.0]
-      - name: fl_teacher
+      - name: systematic_phonics
         spec: 
           fl_teacher:
             3_systematic_phonics: 1
@@ -313,7 +313,7 @@ instruction_following/test6:
             lesson_engagement: 0.25
             factual_accuracy: 1
         score_cap: [null, 12.0]
-      - name: fl_teacher
+      - name: phonological_awareness
         spec: 
           fl_teacher:
             2_phonological_awareness: 1
@@ -333,7 +333,7 @@ instruction_following/test7:
             lesson_engagement: 0.25
             factual_accuracy: 1
         score_cap: [null, 12.0]
-      - name: fl_teacher
+      - name: oral_language_vocabulary
         spec: 
           fl_teacher:
             1_oral_language_vocabulary: 1
@@ -353,7 +353,7 @@ instruction_following/test8:
             lesson_engagement: 0.25
             factual_accuracy: 1
         score_cap: [null, 12.0]
-      - name: fl_teacher
+      - name: reading_fluency
         spec: 
           fl_teacher:
             4_reading_fluency: 1
@@ -396,11 +396,32 @@ interleaved_scoring/test1:
             lesson_engagement: 0.25
             factual_accuracy: 1
         score_cap: [null, 12.0]
-      - name: fl_teacher
+      - name: fl_teacher_interleaved
         spec: 
           fl_teacher:
             $all_interleaved: 1
         score_cap: [null, 12.0]
+    extra_functions:
+      - correctness_reward
+
+interleaved_scoring/test2:
+  base_model: "unsloth/Qwen3-4B-Base"
+  lora_rank: 32
+  dataset: interleaved
+  reward:
+    qurating:
+      - name: core_ed
+        spec:
+          core_ed:
+            pedagogical_structure: 0.1
+            lesson_engagement: 0.25
+            factual_accuracy: 1
+        score_cap: [null, 24.0]
+      - name: fl_teacher_interleaved
+        spec: 
+          fl_teacher:
+            $all_interleaved: 1
+        score_cap: [null, 24.0]
     extra_functions:
       - correctness_reward
 
@@ -419,7 +440,7 @@ gemma4/test1:
             lesson_engagement: 0.25
             factual_accuracy: 1
         score_cap: [null, 12.0]
-      - name: fl_teacher
+      - name: reading_comprehension
         spec: 
           fl_teacher:
             5_reading_comprehension: 1
@@ -439,7 +460,7 @@ qwen35/test1:
             lesson_engagement: 0.25
             factual_accuracy: 1
         score_cap: [null, 12.0]
-      - name: fl_teacher
+      - name: reading_comprehension
         spec: 
           fl_teacher:
             5_reading_comprehension: 1

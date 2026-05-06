@@ -2,6 +2,7 @@
 from pathlib import Path
 from itertools import chain
 import logging
+import os
 
 from unsloth import FastLanguageModel, FastVisionModel
 from unsloth.chat_templates import get_chat_template
@@ -19,10 +20,12 @@ import yaml
 from qr_reward import QuratingReward
 from qurating.constants import DATA_DIR, ROOT
 
+
 register_models(ROOT / "custom_models.yaml")
 
 USE_CFG = "gemma4/test1"
 LOW_MEM = True
+USE_WANDB = True
 
 HERE = Path(__file__).resolve().parent
 CHECKPOINTS_DIR = DATA_DIR / "grpo_checkpoints"
@@ -35,6 +38,9 @@ with open(HERE / "grpo_configs.yaml") as f:
 if USE_CFG not in cfg:
     raise ValueError(f"{USE_CFG} is not a valid test config")
 cfg = cfg[USE_CFG]
+
+os.environ["WANDB_PROJECT"] = "cc-qurating-rl"
+os.environ["WANDB_NAME"] = USE_CFG
 
 max_seq_length = 2048
 max_prompt_length = 256
@@ -390,7 +396,7 @@ grpo_kwargs = dict(
     num_train_epochs=1,  # Set to 1 for a full training run
     max_steps=max_steps,
     save_steps=save_steps,
-    report_to="none",  # Can use Weights & Biases
+    report_to="wandb" if USE_WANDB else "none",  # Can use Weights & Biases
     output_dir=str(CHECKPOINTS_DIR / USE_CFG),
     **extra_grpo_kwargs,
     # For optional training + evaluation

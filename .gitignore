@@ -190,3 +190,4 @@ outputs
 *_lora_*
 *_lora
 education_evals
+wandb
