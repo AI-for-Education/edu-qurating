@@ -28,7 +28,7 @@ if not hasattr(PreTrainedTokenizerBase, "all_special_tokens_extended"):
 register_models(ROOT / "custom_models.yaml")
 
 USE_CFG = "qwen3/test1"
-LOW_MEM = True
+LOW_MEM = 2
 USE_WANDB = True
 
 HERE = Path(__file__).resolve().parent
@@ -395,7 +395,7 @@ grpo_kwargs = dict(
     logging_steps=1,
     per_device_train_batch_size=per_device_train_batch_size,
     gradient_accumulation_steps=1,  # Increase to 4 for smoother training
-    num_generations=3 if LOW_MEM else 4,  # Decrease if out of memory
+    num_generations=LOW_MEM if LOW_MEM else 4,  # Decrease if out of memory
     # max_prompt_length=max_prompt_length,
     max_completion_length=max_completion_length,
     num_train_epochs=1,  # Set to 1 for a full training run
