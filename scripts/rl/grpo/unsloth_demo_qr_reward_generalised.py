@@ -21,14 +21,14 @@ from qurating.constants import DATA_DIR, ROOT
 
 # Monkey-patch to add the missing attribute
 if not hasattr(PreTrainedTokenizerBase, "all_special_tokens_extended"):
-    PreTrainedTokenizerBase.all_special_tokens_extended = property( # type: ignore
+    PreTrainedTokenizerBase.all_special_tokens_extended = property(  # type: ignore
         lambda self: self.all_special_tokens
     )
 
 register_models(ROOT / "custom_models.yaml")
 
 USE_CFG = "qwen3/test1"
-LOW_MEM = 2
+LOW_MEM = False
 USE_WANDB = True
 
 HERE = Path(__file__).resolve().parent
@@ -104,6 +104,7 @@ else:
 # hide warning about processor_kwargs from transformers v5
 logging.getLogger("transformers.processing_utils").setLevel(logging.ERROR)
 
+
 # %%
 # define and store extra non-qurating reward funs
 class CorrectnessResponse(BaseModel):
@@ -127,6 +128,7 @@ caller = get_caller("gemma-4-E4B")
 weight = 3
 
 
+verbose = False
 def correctness_reward(prompts, completions, **kwargs):
     assert GOOD_RESPONSE_COLUMN in kwargs
     prompts_text = [prompt[-1]["content"] for prompt in prompts]
@@ -150,9 +152,10 @@ def correctness_reward(prompts, completions, **kwargs):
         except:
             scores.append(0.0)
             continue
-        print(prompt)
-        print(resp)
-        print(out_obj.model_dump_json(indent=2))
+        if verbose:
+            print(prompt)
+            print(resp)
+            print(out_obj.model_dump_json(indent=2))
         score = (
             float(out_obj.length_match)
             + float(out_obj.format_match)
@@ -226,7 +229,8 @@ def preset_score_specs(preset_label, weight):
 
 #### instantiate reward function from config
 # first qr_reward fun spec we encounter, we set to be verbose, then we set the rest to be non-verbose
-verbose = True
+# NOTE: Update - changed this to always be False. Using log completions instead
+verbose = False
 qr_reward_funs = {}
 for reward_cfg in cfg["reward"]["qurating"]:
     name = reward_cfg["name"]
@@ -393,6 +397,7 @@ grpo_kwargs = dict(
     lr_scheduler_type="linear",
     optim="adamw_8bit",
     logging_steps=1,
+    log_completions=True,
     per_device_train_batch_size=per_device_train_batch_size,
     gradient_accumulation_steps=1,  # Increase to 4 for smoother training
     num_generations=LOW_MEM if LOW_MEM else 4,  # Decrease if out of memory
@@ -409,20 +414,23 @@ grpo_kwargs = dict(
     # per_device_eval_batch_size = 4,
     # eval_accumulation_steps = 1,
     # eval_strategy = "steps",
-    # eval_steps = 1,    
+    # eval_steps = 1,
 )
 if fast_inference:
-    vllm_sampling_params = SamplingParams(
-        min_p=0.1,
-        top_p=1.0,
-        top_k=-1,
-        seed=3407,
-        stop=[tokenizer.eos_token],
-        include_stop_str_in_output=True,
-    )
-    grpo_kwargs["vllm_sampling_params"] = vllm_sampling_params # type: ignore
-
-training_args = GRPOConfig(**grpo_kwargs) # type: ignore
+    grpo_kwargs = {
+        **grpo_kwargs,
+        **dict(
+            min_p=0.1,
+            top_p=1.0,
+            top_k=-1,
+            generation_kwargs={
+                "seed": 3407,
+                "stop": [tokenizer.eos_token],
+                "include_stop_str_in_output": True,
+            },
+        ),
+    }
+training_args = GRPOConfig(**grpo_kwargs)  # type: ignore
 
 # For optional training + evaluation
 # new_dataset = dataset.train_test_split(test_size = 0.01)

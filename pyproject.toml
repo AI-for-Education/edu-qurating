@@ -71,6 +71,7 @@ rl = [
     "tokenizers>=0.22.0,<=0.23.0",
     "trl>=0.24.0",
     "bitsandbytes",
+    "rich>=15.0.0",
 ]
 
 
