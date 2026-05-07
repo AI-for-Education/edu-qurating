@@ -23,7 +23,7 @@ from qurating.constants import DATA_DIR, ROOT
 
 register_models(ROOT / "custom_models.yaml")
 
-USE_CFG = "gemma4/test1"
+USE_CFG = "gemma4/test2"
 LOW_MEM = True
 USE_WANDB = True
 
@@ -85,13 +85,14 @@ elif "gemma-4" in cfg["base_model"].lower():
     per_device_train_batch_size = 4
     max_steps = 2000
     save_steps = 100
-    extra_grpo_kwargs = dict(
-        epsilon = 0.2,
-        epsilon_high = 0.28, # one sided
-        delta = 1.5, # two sided
-        loss_type = 'bnpo',
-        mask_truncated_completions = True
-    )
+    extra_grpo_kwargs = {}
+    # extra_grpo_kwargs = dict(
+    #     epsilon = 0.2,
+    #     epsilon_high = 0.28, # one sided
+    #     delta = 1.5, # two sided
+    #     loss_type = 'bnpo',
+    #     mask_truncated_completions = True
+    # )
 else:
     raise ValueError("base_model must be in qwen-3 or gemma-4 families")
 
