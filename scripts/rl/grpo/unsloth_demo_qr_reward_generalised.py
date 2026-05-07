@@ -11,8 +11,7 @@ import numpy as np
 from datasets import Dataset, load_from_disk
 from fdllm import register_models, get_caller, LLMMessage
 from safetensors import safe_open
-from transformers import TextStreamer
-from transformers.models.qwen3.modeling_qwen3 import Qwen3ForCausalLM
+from transformers.tokenization_utils_base import PreTrainedTokenizerBase
 from vllm import SamplingParams
 from pydantic import BaseModel, Field
 import yaml
@@ -20,10 +19,15 @@ import yaml
 from qr_reward import QuratingReward
 from qurating.constants import DATA_DIR, ROOT
 
+# Monkey-patch to add the missing attribute
+if not hasattr(PreTrainedTokenizerBase, "all_special_tokens_extended"):
+    PreTrainedTokenizerBase.all_special_tokens_extended = property( # type: ignore
+        lambda self: self.all_special_tokens
+    )
 
 register_models(ROOT / "custom_models.yaml")
 
-USE_CFG = "gemma4/test2"
+USE_CFG = "qwen3/test1"
 LOW_MEM = True
 USE_WANDB = True
 
