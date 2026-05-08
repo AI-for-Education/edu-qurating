@@ -27,8 +27,8 @@ if not hasattr(PreTrainedTokenizerBase, "all_special_tokens_extended"):
 
 register_models(ROOT / "custom_models.yaml")
 
-USE_CFG = "qwen3/test1"
-LOW_MEM = False
+USE_CFG = "gemma4/test2"
+LOW_MEM = 3
 USE_WANDB = True
 
 HERE = Path(__file__).resolve().parent
@@ -129,6 +129,8 @@ weight = 3
 
 
 verbose = False
+
+
 def correctness_reward(prompts, completions, **kwargs):
     assert GOOD_RESPONSE_COLUMN in kwargs
     prompts_text = [prompt[-1]["content"] for prompt in prompts]
@@ -396,7 +398,7 @@ grpo_kwargs = dict(
     warmup_ratio=0.1,
     lr_scheduler_type="linear",
     optim="adamw_8bit",
-    logging_steps=1,
+    logging_steps=10,
     log_completions=True,
     per_device_train_batch_size=per_device_train_batch_size,
     gradient_accumulation_steps=1,  # Increase to 4 for smoother training
@@ -408,6 +410,10 @@ grpo_kwargs = dict(
     save_steps=save_steps,
     report_to="wandb" if USE_WANDB else "none",  # Can use Weights & Biases
     output_dir=str(CHECKPOINTS_DIR / USE_CFG),
+    generation_kwargs={
+        "stop": [tokenizer.eos_token],
+        "include_stop_str_in_output": True,
+    },
     **extra_grpo_kwargs,
     # For optional training + evaluation
     # fp16_full_eval = True,
@@ -419,16 +425,7 @@ grpo_kwargs = dict(
 if fast_inference:
     grpo_kwargs = {
         **grpo_kwargs,
-        **dict(
-            min_p=0.1,
-            top_p=1.0,
-            top_k=-1,
-            generation_kwargs={
-                "seed": 3407,
-                "stop": [tokenizer.eos_token],
-                "include_stop_str_in_output": True,
-            },
-        ),
+        **dict(min_p=0.1, top_p=1.0, top_k=-1),
     }
 training_args = GRPOConfig(**grpo_kwargs)  # type: ignore
 
