@@ -27,8 +27,8 @@ if not hasattr(PreTrainedTokenizerBase, "all_special_tokens_extended"):
 
 register_models(ROOT / "custom_models.yaml")
 
-USE_CFG = "gemma4/test2"
-LOW_MEM = 3
+USE_CFG = "qwen3/test1"
+LOW_MEM = False
 USE_WANDB = True
 
 HERE = Path(__file__).resolve().parent
@@ -452,7 +452,7 @@ model.save_lora(str(CHECKPOINTS_DIR / USE_CFG / "grpo_saved_lora"))
 # %%
 tensors = {}
 with safe_open(
-    str(CHECKPOINTS_DIR / USE_CFG / "grpo_saved_lora" "adapter_model.safetensors"),
+    str(CHECKPOINTS_DIR / USE_CFG / "grpo_saved_lora" / "adapter_model.safetensors"),
     framework="pt",
 ) as f:
     # Verify both A and B are non zero
