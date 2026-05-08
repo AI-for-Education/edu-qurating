@@ -72,6 +72,7 @@ if "qwen3-" in cfg["base_model"].lower():
     max_steps = 2000
     save_steps = 100
     extra_grpo_kwargs = {}
+    extra_perft_kwargs = {}
 elif "qwen3.5-" in cfg["base_model"].lower():
     chat_template_name = "qwen-3"
     FastModel = FastVisionModel
@@ -81,6 +82,7 @@ elif "qwen3.5-" in cfg["base_model"].lower():
     max_steps = 2000
     save_steps = 100
     extra_grpo_kwargs = {}
+    extra_peft_kwargs = {"finetune_vision_layers": False}
 elif "gemma-4" in cfg["base_model"].lower():
     chat_template_name = "gemma-4"
     FastModel = FastVisionModel
@@ -90,6 +92,7 @@ elif "gemma-4" in cfg["base_model"].lower():
     max_steps = 2000
     save_steps = 100
     extra_grpo_kwargs = {}
+    extra_peft_kwargs = {"finetune_vision_layers": False}
     # extra_grpo_kwargs = dict(
     #     epsilon = 0.2,
     #     epsilon_high = 0.28, # one sided
@@ -339,7 +342,6 @@ if chat_template_name is not None:
 model = FastModel.get_peft_model(
     model,
     r=lora_rank,  # Choose any number > 0 ! Suggested 8, 16, 32, 64, 128
-    finetune_vision_layers=False,
     target_modules=[
         "q_proj",
         "k_proj",
@@ -352,6 +354,7 @@ model = FastModel.get_peft_model(
     lora_alpha=lora_rank * 2,  # *2 speeds up training
     use_gradient_checkpointing="unsloth",  # Reduces memory usage
     random_state=3407,
+    **extra_peft_kwargs, # type: ignore
 )
 
 tokenizer.apply_chat_template(
