@@ -4,7 +4,7 @@ from itertools import chain
 import logging
 import os
 
-from unsloth import FastLanguageModel, FastVisionModel
+from unsloth import FastLanguageModel, FastVisionModel, FastModel as FastModelUS
 from unsloth.chat_templates import get_chat_template
 from trl import GRPOConfig, GRPOTrainer  # type: ignore
 import numpy as np
@@ -27,7 +27,7 @@ if not hasattr(PreTrainedTokenizerBase, "all_special_tokens_extended"):
 
 register_models(ROOT / "custom_models.yaml")
 
-USE_CFG = "qwen3/test1"
+USE_CFG = "qwen35/test1"
 LOW_MEM = False
 USE_WANDB = True
 
@@ -93,6 +93,17 @@ elif "gemma-4" in cfg["base_model"].lower():
     save_steps = 100
     extra_grpo_kwargs = {}
     extra_peft_kwargs = {"finetune_vision_layers": False}
+elif "gemma-3" in cfg["base_model"].lower():
+    chat_template_name = "gemma-3"
+    FastModel = FastModelUS
+    fast_inference = False
+    learning_rate = 5e-6
+    per_device_train_batch_size = 4
+    max_steps = 2000
+    save_steps = 100
+    extra_grpo_kwargs = {}
+    extra_peft_kwargs = {}
+    # extra_peft_kwargs = {"finetune_vision_layers": False}
     # extra_grpo_kwargs = dict(
     #     epsilon = 0.2,
     #     epsilon_high = 0.28, # one sided

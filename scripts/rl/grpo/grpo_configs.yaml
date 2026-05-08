@@ -467,6 +467,26 @@ gemma4/test2:
         score_cap: [null, 12.0]
     extra_functions:
       - correctness_reward
+gemma3/test1:
+  base_model: "unsloth/gemma-3-4b-pt"
+  lora_rank: 32
+  dataset: original
+  reward:
+    qurating:
+      - name: core_ed
+        spec:
+          core_ed:
+            pedagogical_structure: 0.1
+            lesson_engagement: 0.25
+            factual_accuracy: 1
+        score_cap: [null, 12.0]
+      - name: reading_comprehension
+        spec: 
+          fl_teacher:
+            5_reading_comprehension: 1
+        score_cap: [null, 12.0]
+    extra_functions:
+      - correctness_reward
 qwen35/test1:
   base_model: "unsloth/Qwen3.5-4B-Base"
   lora_rank: 32
