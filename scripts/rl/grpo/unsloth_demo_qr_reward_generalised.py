@@ -339,6 +339,7 @@ if chat_template_name is not None:
 model = FastModel.get_peft_model(
     model,
     r=lora_rank,  # Choose any number > 0 ! Suggested 8, 16, 32, 64, 128
+    finetune_vision_layers=False,
     target_modules=[
         "q_proj",
         "k_proj",
