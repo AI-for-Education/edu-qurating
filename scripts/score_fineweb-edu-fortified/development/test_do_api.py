@@ -1,14 +1,25 @@
 # %%
 import time
+from pathlib import Path
 
+import yaml
 import digitalocean
 from digitalocean.baseapi import DataReadError, JSONReadError, NotFoundError
 from dotenv import load_dotenv
 
 load_dotenv(override=True)
 
+HERE = Path(__file__).resolve().parent
+
+CONFIG_FILE = HERE / "crane_config.yaml"
+
+# %% load config
+with open(CONFIG_FILE) as f:
+    cfg = yaml.safe_load(f)
+
 # %%
-target_project_name = "Content Curation"
+# target_project_name = "Content Curation"
+target_project_name = cfg["project_name"]
 
 manager = digitalocean.Manager()
 
@@ -35,6 +46,18 @@ for image in droplet_images:
         print(image)
 
 # %%
+name = cfg["droplet_name"]
+
+# size_slug="gpu-6000adax1-48gb"
+# size_slug="gpu-h100x1-80gb"
+size_slug=cfg["size_slug"]
+
+# image = "220378284" # multi-GPU snapshot
+# image = "214151830" # single GPU snapshot
+image = cfg["image"] # single GPU inference ready image
+
+ssh_keys=cfg["ssh_keys"]
+
 created_outer = False
 
 while not created_outer:
@@ -44,16 +67,11 @@ while not created_outer:
     errors = {}
     while not created:
         droplet = digitalocean.Droplet(
-            name="test-droplet-1x-h200",
-            # size_slug="gpu-6000adax1-48gb",
-            # size_slug="gpu-h100x1-80gb",
-            size_slug="gpu-h200x1-141gb",
-            # size_slug="gpu-h100x8-640gb",
-            # size_slug="gpu-h200x8-1128gb",
-            image="214151830",
-            # image="220378284",
+            name=name,
+            size_slug=size_slug,
+            image=image,
             region=regions[region_idx],
-            ssh_keys=["3f:7b:15:32:65:f7:8d:7e:b5:1d:10:83:a6:d9:e4:2f"],
+            ssh_keys=ssh_keys,
         )
         try:
             droplet.create()
@@ -81,6 +99,7 @@ while not created_outer:
                 if dp.status is not None:
                     print(f"{dp.status}")
                     if dp.status == "active":
+                        do_project.assign_resource([f"do:droplet:{droplet.id}"])
                         print("Success")
                         print(f"id: {dp.id}")
                         print(f"size: {dp.size_slug}")
@@ -95,3 +114,4 @@ while not created_outer:
 
 # %%
 # dp.destroy()
+#
