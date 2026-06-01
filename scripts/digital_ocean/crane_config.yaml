@@ -1,7 +1,7 @@
 project_name: "CraneAI"
 droplet_name: "crane-test-1x-h200"
 size_slug: "gpu-h200x1-141gb"
-image: "194072835"
+image: "230469787"
 ssh_keys:
   [
     "2e:6e:d9:f3:51:6b:8f:5f:0f:71:2d:92:e7:bb:61:d9",
