@@ -70,6 +70,7 @@ def main(
         try:
             dp = manager.get_droplet(destroy)
             dp.destroy()
+            return
         except NotFoundError:
             print(f"\ndroplet: {destroy} could not be found\n")
             return
