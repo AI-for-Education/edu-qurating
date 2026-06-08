@@ -4,7 +4,8 @@ from itertools import chain
 import logging
 import os
 
-from unsloth import FastLanguageModel, FastVisionModel, FastModel as FastModelUS
+from dotenv import load_dotenv
+from unsloth import FastLanguageModel, FastVisionModel
 from unsloth.chat_templates import get_chat_template
 from trl import GRPOConfig, GRPOTrainer  # type: ignore
 import numpy as np
@@ -25,10 +26,12 @@ if not hasattr(PreTrainedTokenizerBase, "all_special_tokens_extended"):
         lambda self: self.all_special_tokens
     )
 
+load_dotenv(override=True)
 register_models(ROOT / "custom_models.yaml")
 
-USE_CFG = "qwen35/test1"
-LOW_MEM = False
+USE_CFG = "qwen35/test2"
+NUM_GENERATIONS = 2
+PER_DEVICE_TRAIN_BATCH_SIZE = 2
 USE_WANDB = True
 
 HERE = Path(__file__).resolve().parent
@@ -50,6 +53,10 @@ max_seq_length = 2048
 max_prompt_length = 256
 lora_rank = cfg["lora_rank"]
 
+chat_template_name = cfg.get("chat_template_name", None)
+
+system_prompt = cfg.get("system_prompt", """/flteacher""")
+
 dataset_variant = cfg["dataset"]
 
 if dataset_variant == "interleaved":
@@ -64,31 +71,28 @@ else:
     raise ValueError("DATASET must be one of 'interleaved' or 'original")
 
 if "qwen3-" in cfg["base_model"].lower():
-    chat_template_name = "qwen-3"
     FastModel = FastLanguageModel
     fast_inference = True
     learning_rate = 5e-6
-    per_device_train_batch_size = 4
+    per_device_train_batch_size = PER_DEVICE_TRAIN_BATCH_SIZE
     max_steps = 2000
     save_steps = 100
     extra_grpo_kwargs = {}
-    extra_perft_kwargs = {}
+    extra_peft_kwargs = {}
 elif "qwen3.5-" in cfg["base_model"].lower():
-    chat_template_name = "qwen-3"
     FastModel = FastVisionModel
     fast_inference = False
     learning_rate = 5e-6
-    per_device_train_batch_size = 4
+    per_device_train_batch_size = PER_DEVICE_TRAIN_BATCH_SIZE
     max_steps = 2000
     save_steps = 100
     extra_grpo_kwargs = {}
     extra_peft_kwargs = {"finetune_vision_layers": False}
 elif "gemma-4" in cfg["base_model"].lower():
-    chat_template_name = "gemma-4"
     FastModel = FastVisionModel
     fast_inference = False
     learning_rate = 5e-5
-    per_device_train_batch_size = 4
+    per_device_train_batch_size = PER_DEVICE_TRAIN_BATCH_SIZE
     max_steps = 2000
     save_steps = 100
     extra_grpo_kwargs = {}
@@ -139,13 +143,13 @@ class CorrectnessResponse(BaseModel):
 
 
 caller = get_caller("gemma-4-E4B")
-weight = 3
-
 
 verbose = False
 
+def correctness_reward_half(prompts, completions, **kwargs):
+    return correctness_reward(prompts, completions, **kwargs, scale=1.5)
 
-def correctness_reward(prompts, completions, **kwargs):
+def correctness_reward(prompts, completions, scale=3.0, **kwargs):
     assert GOOD_RESPONSE_COLUMN in kwargs
     prompts_text = [prompt[-1]["content"] for prompt in prompts]
     responses = [completion[0]["content"] for completion in completions]
@@ -177,7 +181,7 @@ def correctness_reward(prompts, completions, **kwargs):
             + float(out_obj.format_match)
             + float(out_obj.instruction_following)
         )
-        scores.append(score * weight)
+        scores.append(score * scale)
     return scores
 
 
@@ -196,6 +200,7 @@ def length_target(completions, **kwargs):
 extra_functions = {
     "length_target": length_target,
     "correctness_reward": correctness_reward,
+    "correctness_reward_half": correctness_reward_half,
 }
 
 
@@ -281,9 +286,6 @@ extra_reward_funs = {
 all_reward_funs = dict(chain(qr_reward_funs.items(), extra_reward_funs.items()))
 
 # %%
-system_prompt = """/flteacher"""
-
-# %%
 if dataset_variant == "interleaved":
     dataset = load_from_disk(str(evals_dir / "flteach_grpo_dataset_train-test"))[
         "train"
@@ -365,7 +367,7 @@ model = FastModel.get_peft_model(
     lora_alpha=lora_rank * 2,  # *2 speeds up training
     use_gradient_checkpointing="unsloth",  # Reduces memory usage
     random_state=3407,
-    **extra_peft_kwargs, # type: ignore
+    **extra_peft_kwargs,  # type: ignore
 )
 
 tokenizer.apply_chat_template(
@@ -403,7 +405,7 @@ print("Max Length = ", maximum_length)
 # del tokenized
 
 # %%
-max_prompt_length = maximum_length + 1  # + 1 just in case!
+# max_prompt_length = maximum_length + 1  # + 1 just in case!
 max_completion_length = max_seq_length - max_prompt_length
 
 grpo_kwargs = dict(
@@ -416,8 +418,8 @@ grpo_kwargs = dict(
     logging_steps=10,
     log_completions=True,
     per_device_train_batch_size=per_device_train_batch_size,
-    gradient_accumulation_steps=1,  # Increase to 4 for smoother training
-    num_generations=LOW_MEM if LOW_MEM else 4,  # Decrease if out of memory
+    gradient_accumulation_steps = int(np.ceil(16 / (NUM_GENERATIONS * PER_DEVICE_TRAIN_BATCH_SIZE))),  # Increase to 4 for smoother training
+    num_generations=NUM_GENERATIONS,  # Decrease if out of memory
     # max_prompt_length=max_prompt_length,
     max_completion_length=max_completion_length,
     num_train_epochs=1,  # Set to 1 for a full training run
@@ -442,6 +444,16 @@ if fast_inference:
         **grpo_kwargs,
         **dict(min_p=0.1, top_p=1.0, top_k=-1),
     }
+# add in settings from config if they exist
+for key, val in cfg.get("grpo_kwargs", {}).items():
+    if (
+        isinstance(val, dict)
+        and key in grpo_kwargs
+        and isinstance(grpo_kwargs[key], dict)
+    ):
+        grpo_kwargs[key] = {**grpo_kwargs[key], **val} # type: ignore
+    else:
+        grpo_kwargs[key] = val
 training_args = GRPOConfig(**grpo_kwargs)  # type: ignore
 
 # For optional training + evaluation

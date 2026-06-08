@@ -1,6 +1,7 @@
 #### Initial tests. All FLTeach dims together
 test1:
   base_model: "unsloth/Qwen3-4B-Base"
+  chat_template_name: "qwen-3"
   lora_rank: 32
   dataset: original
   reward:
@@ -20,6 +21,7 @@ test1:
         score_cap: [null, 12.0]
 test2:
   base_model: "unsloth/Qwen3-4B-Base"
+  chat_template_name: "qwen-3"
   lora_rank: 32
   dataset: original
   reward:
@@ -38,6 +40,7 @@ test2:
         score_cap: [null, 12.0]
 test3:
   base_model: "unsloth/Qwen3-4B-Base"
+  chat_template_name: "qwen-3"
   lora_rank: 32
   dataset: original
   reward:
@@ -58,6 +61,7 @@ test3:
       - length_target
 test4:
   base_model: "unsloth/Qwen3-4B-Base"
+  chat_template_name: "qwen-3"
   lora_rank: 32
   dataset: original
   reward:
@@ -80,6 +84,7 @@ test4:
 ### Secondary tests. Single FLTeach dims
 test5:
   base_model: "unsloth/Qwen3-4B-Base"
+  chat_template_name: "qwen-3"
   lora_rank: 32
   dataset: original
   reward:
@@ -100,6 +105,7 @@ test5:
       - length_target
 test6:
   base_model: "unsloth/Qwen3-4B-Base"
+  chat_template_name: "qwen-3"
   lora_rank: 32
   dataset: original
   reward:
@@ -120,6 +126,7 @@ test6:
       - length_target
 test7:
   base_model: "unsloth/Qwen3-4B-Base"
+  chat_template_name: "qwen-3"
   lora_rank: 32
   dataset: original
   reward:
@@ -140,6 +147,7 @@ test7:
       - length_target
 test8:
   base_model: "unsloth/Qwen3-4B-Base"
+  chat_template_name: "qwen-3"
   lora_rank: 32
   dataset: original
   reward:
@@ -160,6 +168,7 @@ test8:
       - length_target
 test9:
   base_model: "unsloth/Qwen3-4B-Base"
+  chat_template_name: "qwen-3"
   lora_rank: 32
   dataset: original
   reward:
@@ -180,6 +189,7 @@ test9:
       - length_target
 test10:
   base_model: "unsloth/Qwen3-4B-Base"
+  chat_template_name: "qwen-3"
   lora_rank: 32
   dataset: original
   reward:
@@ -202,6 +212,7 @@ test10:
 ### 3rd stage of tests. Added correctness / instruction-following reward
 instruction_following/test1:
   base_model: "unsloth/Qwen3-4B-Base"
+  chat_template_name: "qwen-3"
   lora_rank: 32
   dataset: original
   reward:
@@ -222,6 +233,7 @@ instruction_following/test1:
       - correctness_reward
 instruction_following/test2:
   base_model: "unsloth/Qwen3-4B-Base"
+  chat_template_name: "qwen-3"
   lora_rank: 32
   dataset: original
   reward:
@@ -242,6 +254,7 @@ instruction_following/test2:
       - correctness_reward
 instruction_following/test3:
   base_model: "unsloth/Qwen3-4B-Base"
+  chat_template_name: "qwen-3"
   lora_rank: 32
   dataset: original
   reward:
@@ -262,6 +275,7 @@ instruction_following/test3:
       - correctness_reward
 instruction_following/test4:
   base_model: "unsloth/Qwen3-4B-Base"
+  chat_template_name: "qwen-3"
   lora_rank: 32
   dataset: original
   reward:
@@ -282,6 +296,7 @@ instruction_following/test4:
       - correctness_reward
 instruction_following/test5:
   base_model: "unsloth/Qwen3-4B-Base"
+  chat_template_name: "qwen-3"
   lora_rank: 32
   dataset: original
   reward:
@@ -302,6 +317,7 @@ instruction_following/test5:
       - correctness_reward
 instruction_following/test6:
   base_model: "unsloth/Qwen3-4B-Base"
+  chat_template_name: "qwen-3"
   lora_rank: 32
   dataset: original
   reward:
@@ -322,6 +338,7 @@ instruction_following/test6:
       - correctness_reward
 instruction_following/test7:
   base_model: "unsloth/Qwen3-4B-Base"
+  chat_template_name: "qwen-3"
   lora_rank: 32
   dataset: original
   reward:
@@ -342,6 +359,7 @@ instruction_following/test7:
       - correctness_reward
 instruction_following/test8:
   base_model: "unsloth/Qwen3-4B-Base"
+  chat_template_name: "qwen-3"
   lora_rank: 32
   dataset: original
   reward:
@@ -362,6 +380,7 @@ instruction_following/test8:
       - correctness_reward
 instruction_following/test9:
   base_model: "unsloth/Qwen3-4B-Base"
+  chat_template_name: "qwen-3"
   lora_rank: 32
   dataset: original
   reward:
@@ -385,6 +404,7 @@ instruction_following/test9:
 ### scoring for each item (interleaved scoring)
 interleaved_scoring/test1:
   base_model: "unsloth/Qwen3-4B-Base"
+  chat_template_name: "qwen-3"
   lora_rank: 32
   dataset: interleaved
   reward:
@@ -406,6 +426,7 @@ interleaved_scoring/test1:
 
 interleaved_scoring/test2:
   base_model: "unsloth/Qwen3-4B-Base"
+  chat_template_name: "qwen-3"
   lora_rank: 32
   dataset: interleaved
   reward:
@@ -449,6 +470,7 @@ gemma4/test1:
       - correctness_reward
 gemma4/test2:
   base_model: "unsloth/gemma-4-E2B"
+  chat_template_name: "gemma-4"
   lora_rank: 32
   dataset: original
   reward:
@@ -467,10 +489,13 @@ gemma4/test2:
         score_cap: [null, 12.0]
     extra_functions:
       - correctness_reward
-gemma3/test1:
-  base_model: "unsloth/gemma-3-4b-pt"
+gemma4/test3:
+  base_model: "unsloth/gemma-4-E2B"
+  chat_template_name: "gemma-4"
   lora_rank: 32
   dataset: original
+  grpo_kwargs:
+    gradient_accumulation_steps: 4
   reward:
     qurating:
       - name: core_ed
@@ -487,8 +512,187 @@ gemma3/test1:
         score_cap: [null, 12.0]
     extra_functions:
       - correctness_reward
+gemma4/test4:
+  base_model: "unsloth/gemma-4-E2B"
+  chat_template_name: "gemma-4"
+  lora_rank: 32
+  dataset: original
+  grpo_kwargs:
+    gradient_accumulation_steps: 2
+    epsilon: 0.2
+    epsilon_high: 0.28 # one sided
+    delta: 1.5 # two sided
+    loss_type: bnpo
+    mask_truncated_completions: True
+  reward:
+    qurating:
+      - name: core_ed
+        spec:
+          core_ed:
+            pedagogical_structure: 0.1
+            lesson_engagement: 0.25
+            factual_accuracy: 1
+        score_cap: [null, 12.0]
+      - name: reading_comprehension
+        spec: 
+          fl_teacher:
+            5_reading_comprehension: 1
+        score_cap: [null, 12.0]
+    extra_functions:
+      - correctness_reward
+gemma4/test5:
+  base_model: "unsloth/gemma-4-E2B"
+  chat_template_name: "gemma-4"
+  lora_rank: 32
+  dataset: original
+  grpo_kwargs:
+    gradient_accumulation_steps: 2
+    epsilon: 0.2
+    epsilon_high: 0.28 # one sided
+    delta: 1.5 # two sided
+    loss_type: bnpo
+    mask_truncated_completions: True
+    generation_kwargs:
+      repetition_penalty: 1.2
+  reward:
+    qurating:
+      - name: core_ed
+        spec:
+          core_ed:
+            pedagogical_structure: 0.1
+            lesson_engagement: 0.25
+            factual_accuracy: 1
+        score_cap: [null, 12.0]
+      - name: reading_comprehension
+        spec: 
+          fl_teacher:
+            5_reading_comprehension: 1
+        score_cap: [null, 12.0]
+    extra_functions:
+      - correctness_reward
+gemma4/test6:
+  base_model: "unsloth/gemma-4-E2B"
+  chat_template_name: "gemma-4"
+  lora_rank: 32
+  dataset: original
+  grpo_kwargs:
+    gradient_accumulation_steps: 2
+    epsilon: 0.2
+    epsilon_high: 0.28 # one sided
+    delta: 1.5 # two sided
+    loss_type: bnpo
+    mask_truncated_completions: True
+    generation_kwargs:
+      repetition_penalty: 1.2
+  reward:
+    qurating:
+      - name: core_ed
+        spec:
+          core_ed:
+            pedagogical_structure: 0.1
+            lesson_engagement: 0.25
+            factual_accuracy: 1
+        score_cap: [null, 12.0]
+      - name: reading_comprehension
+        spec: 
+          fl_teacher:
+            5_reading_comprehension: 1
+        score_cap: [null, 12.0]
+    extra_functions:
+      - correctness_reward
+      - length_target
+gemma4/test7:
+  base_model: "unsloth/gemma-4-E2B-it"
+  chat_template_name: null
+  lora_rank: 32
+  dataset: original
+  grpo_kwargs:
+    gradient_accumulation_steps: 2
+    epsilon: 0.2
+    epsilon_high: 0.28 # one sided
+    delta: 1.5 # two sided
+    loss_type: bnpo
+    mask_truncated_completions: True
+    generation_kwargs:
+      repetition_penalty: 1.2
+  reward:
+    qurating:
+      - name: reading_comprehension
+        spec: 
+          fl_teacher:
+            5_reading_comprehension: 1
+        score_cap: [null, 12.0]
+    extra_functions:
+      - correctness_reward
+gemma4/test8:
+  base_model: "unsloth/gemma-4-E2B-it"
+  chat_template_name: null
+  lora_rank: 32
+  dataset: original
+  grpo_kwargs:
+    gradient_accumulation_steps: 2
+    epsilon: 0.2
+    epsilon_high: 0.28 # one sided
+    delta: 1.5 # two sided
+    loss_type: bnpo
+    mask_truncated_completions: True
+    generation_kwargs:
+      repetition_penalty: 1.2
+  reward:
+    qurating:
+      - name: reading_comprehension
+        spec: 
+          fl_teacher:
+            5_reading_comprehension: 1
+        score_cap: [null, 12.0]
+    extra_functions:
+      - correctness_reward_half
+gemma4/test9:
+  base_model: "unsloth/gemma-4-E2B-it"
+  chat_template_name: null
+  lora_rank: 32
+  dataset: original
+  grpo_kwargs:
+    gradient_accumulation_steps: 2
+    epsilon: 0.2
+    epsilon_high: 0.28 # one sided
+    delta: 1.5 # two sided
+    loss_type: bnpo
+    mask_truncated_completions: True
+    generation_kwargs:
+      repetition_penalty: 1.2
+  reward:
+    qurating:
+      - name: reading_comprehension
+        spec: 
+          fl_teacher:
+            5_reading_comprehension: 1
+        score_cap: [null, 12.0]
+    extra_functions: []
+gemma4/test10:
+  base_model: "unsloth/gemma-4-E2B-it"
+  chat_template_name: null
+  lora_rank: 32
+  dataset: original
+  grpo_kwargs:
+    gradient_accumulation_steps: 2
+    epsilon: 0.2
+    epsilon_high: 0.28 # one sided
+    delta: 1.5 # two sided
+    loss_type: bnpo
+    mask_truncated_completions: True
+  reward:
+    qurating:
+      - name: reading_comprehension
+        spec: 
+          fl_teacher:
+            5_reading_comprehension: 1
+        score_cap: [null, 12.0]
+    extra_functions: []
+#######################################################
 qwen35/test1:
   base_model: "unsloth/Qwen3.5-4B-Base"
+  chat_template_name: "qwen-3"
   lora_rank: 32
   dataset: original
   reward:
@@ -507,8 +711,24 @@ qwen35/test1:
         score_cap: [null, 12.0]
     extra_functions:
       - correctness_reward
+qwen35/test2:
+  base_model: "unsloth/Qwen3.5-4B-Base"
+  chat_template_name: "qwen-3"
+  lora_rank: 32
+  dataset: original
+  reward:
+    qurating:
+      - name: reading_comprehension
+        spec: 
+          fl_teacher:
+            5_reading_comprehension: 1
+        score_cap: [null, null]
+    extra_functions:
+      - correctness_reward
+#####################################
 qwen3/test1:
   base_model: "unsloth/Qwen3-4B-Base"
+  chat_template_name: "qwen-3"
   lora_rank: 32
   dataset: original
   reward:
@@ -525,5 +745,103 @@ qwen3/test1:
           fl_teacher:
             5_reading_comprehension: 1
         score_cap: [null, 12.0]
+    extra_functions:
+      - correctness_reward
+qwen3/test2:
+  base_model: "unsloth/Qwen3-4B-Base"
+  chat_template_name: "qwen-3"
+  lora_rank: 32
+  dataset: original
+  reward:
+    qurating:
+      - name: reading_comprehension
+        spec: 
+          fl_teacher:
+            5_reading_comprehension: 1
+        score_cap: [null, null]
+    extra_functions:
+      - correctness_reward
+qwen3/test3:
+  base_model: "unsloth/Qwen3-4B-Base"
+  chat_template_name: "qwen-3"
+  lora_rank: 32
+  dataset: original
+  reward:
+    qurating:
+      - name: writing_encoding
+        spec: 
+          fl_teacher:
+            6_writing_encoding: 1
+        score_cap: [null, null]
+    extra_functions:
+      - correctness_reward
+qwen3/test4:
+  base_model: "unsloth/Qwen3-4B-Base"
+  chat_template_name: "qwen-3"
+  lora_rank: 32
+  dataset: original
+  reward:
+    qurating:
+      - name: systematic_phonics
+        spec: 
+          fl_teacher:
+            3_systematic_phonics: 1
+        score_cap: [null, null]
+    extra_functions:
+      - correctness_reward
+qwen3/test5:
+  base_model: "unsloth/Qwen3-4B-Base"
+  chat_template_name: "qwen-3"
+  lora_rank: 32
+  dataset: original
+  reward:
+    qurating:
+      - name: oral_language_vocabulary
+        spec: 
+          fl_teacher:
+            1_oral_language_vocabulary: 1
+        score_cap: [null, null]
+    extra_functions:
+      - correctness_reward
+qwen3/test6:
+  base_model: "unsloth/Qwen3-4B-Base"
+  chat_template_name: "qwen-3"
+  lora_rank: 32
+  dataset: original
+  reward:
+    qurating:
+      - name: phonological_awareness
+        spec: 
+          fl_teacher:
+            2_phonological_awareness: 1
+        score_cap: [null, null]
+    extra_functions:
+      - correctness_reward
+qwen3/test7:
+  base_model: "unsloth/Qwen3-4B-Base"
+  chat_template_name: "qwen-3"
+  lora_rank: 32
+  dataset: original
+  reward:
+    qurating:
+      - name: reading_fluency
+        spec: 
+          fl_teacher:
+            4_reading_fluency: 1
+        score_cap: [null, null]
+    extra_functions:
+      - correctness_reward
+qwen3/test8:
+  base_model: "unsloth/Qwen3-4B-Base"
+  chat_template_name: "qwen-3"
+  lora_rank: 32
+  dataset: original
+  reward:
+    qurating:
+      - name: pedagogical_quality
+        spec: 
+          fl_teacher:
+            7_pedagogical_quality: 1
+        score_cap: [null, null]
     extra_functions:
       - correctness_reward
