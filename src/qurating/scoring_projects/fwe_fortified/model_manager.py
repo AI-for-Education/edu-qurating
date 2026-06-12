@@ -45,10 +45,13 @@ class QuratingModelManager:
             ),
         }
 
-        self.labels = {
-            model_type: self._load_labels(dataset_file)
-            for model_type, dataset_file in self._models_dataset_files.items()
-        }
+        if self.local_checkpoints_available:
+            self.labels = {
+                model_type: self._load_labels(dataset_file)
+                for model_type, dataset_file in self._models_dataset_files.items()
+            }
+        else:
+            self.labels = {}
 
         self._models_checkpoints = {
             "qwen-3-4b": {
@@ -90,10 +93,20 @@ class QuratingModelManager:
             set(models) == set(self._models_dataset_files) for models in self._models_checkpoints.values()
         )
 
+    @property
+    def local_checkpoints_available(self):
+        for dataset_file in self._models_dataset_files.values():
+            if not dataset_file.exists():
+                return False
+        return True
+            
+
     def model_types(self, base_model):
         return (mod_type for mod_type in self._models_checkpoints[base_model])
 
     def upload_all(self, base_models: str | list[str] | None = None):
+        assert self.local_checkpoints_available
+        
         if base_models is None:
             base_models = list(self._models_checkpoints)
         elif isinstance(base_models, str):
@@ -129,7 +142,7 @@ class QuratingModelManager:
             return stem
 
     @staticmethod
-    def _load_dataset(dataset_file: str | Path):
+    def _load_dataset(dataset_file: str | Path):       
         parquetf = Path(dataset_file).with_suffix(".parquet")
         if parquetf.exists():
             ds = Dataset.from_parquet(str(dataset_file))
@@ -143,6 +156,8 @@ class QuratingModelManager:
         return ds
 
     def _load_labels(self, dataset_file: str | Path):
+        assert self.local_checkpoints_available
+        
         ds = self._load_dataset(dataset_file)
         labels = [
             "_".join(col.split("_")[:-1])
@@ -152,6 +167,8 @@ class QuratingModelManager:
         return labels
 
     def _fix_labels(self, base_model: str, model_type: str):
+        assert self.local_checkpoints_available
+        
         model_path_checkpoint = self._models_checkpoints[base_model][model_type]
         labels = self.labels[model_type]
         config = AutoConfig.from_pretrained(model_path_checkpoint)

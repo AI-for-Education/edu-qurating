@@ -49,11 +49,16 @@ class TokenizeAndChunk:
 
 
 class ModelAnnotator:
-    def __init__(self, model_name, labels, device_batch_size):
+    def __init__(self, model_name: str, labels: list[str] | None, device_batch_size: int):
         self.model_name = model_name
-        self.labels = labels
         self.device_batch_size = device_batch_size
         config = AutoConfig.from_pretrained(model_name)
+        if labels is None:
+            if config.label2id is not None:
+                labels = list(config.label2id)
+            else:
+                raise ValueError("labels can't be None if config has no labels")
+        self.labels = labels
         config.num_labels = len(labels)
 
         self.model = create_model(

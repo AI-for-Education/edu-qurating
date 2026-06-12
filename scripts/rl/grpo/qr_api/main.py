@@ -1,3 +1,5 @@
+import os
+
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
@@ -8,7 +10,8 @@ from qr_scorer import QuratingScorer
 
 load_dotenv(override=True)
 
-qr_scorer = QuratingScorer()
+base_model = os.getenv("QURATING_REWARD_SCORER_BASE_MODEL", "gemma-3-4b")
+qr_scorer = QuratingScorer(base_model)
 
 app = FastAPI()
 

@@ -19,12 +19,12 @@ class QuratingScorer:
         self.annotator_batch_size = annotator_batch_size
 
         self.modman = QuratingModelManager()
-        self.modman.download_all()
+        self.modman.download_all(base_models=base_model)
 
         self.annotators = {
             model_type: ModelAnnotator(
                 self.modman.model_folder(base_model, model_type, local_path=True),
-                self.modman.labels[model_type],
+                None,
                 self.annotator_batch_size,
             )
             for model_type in self.modman.model_types(base_model)
