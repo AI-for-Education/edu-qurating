@@ -9,7 +9,8 @@ from qurating.scoring_projects.fwe_fortified.model_manager import QuratingModelM
 class QuratingScorer:
     def __init__(
         self,
-        base_model="gemma-3-4b",
+        base_model: str = "gemma-3-4b",
+        models_types: str | list[str] | None = None,
         annotator_batch_size: int = 500,
         text_field: str = "text",
     ):
@@ -21,6 +22,17 @@ class QuratingScorer:
         self.modman = QuratingModelManager()
         self.modman.download_all(base_models=base_model)
 
+        if models_types is None:
+            model_types = self.modman.model_types(base_model)
+        elif isinstance(model_types, str):
+            model_types = [model_types]
+        if not all(
+            model_type in self.modman.model_types(base_model)
+            for model_type in model_types
+        ):
+            raise ValueError(
+                f"model_types contains unsupported values. Must be in {self.modman.model_types(base_model)}"
+            )
         self.annotators = {
             model_type: ModelAnnotator(
                 self.modman.model_folder(base_model, model_type, local_path=True),

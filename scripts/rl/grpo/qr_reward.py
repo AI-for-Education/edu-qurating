@@ -7,9 +7,6 @@ import numpy as np
 from datasets import Dataset
 import requests
 
-from qurating.constants import RESULTS_DIR, ROOT
-from qurating.inference import ModelAnnotator, TokenizeAndChunk
-
 
 class QuratingReward:
     def __init__(
@@ -20,66 +17,8 @@ class QuratingReward:
     ):
         self._text_field = text_field
         self.endpoint = endpoint
-        self.dataset_files = {
-            "core_ed": (
-                RESULTS_DIR
-                / "tokens_max_512"
-                / "fwe-fortified_sampled-500000_seed-72353534"
-                / "ours_v2"
-                / "combined_gpt-4.1-mini_nexamples-200000_use-logprobs"
-            ),
-            "fl_student": (
-                RESULTS_DIR
-                / "tokens_max_512"
-                / "fwe-fortified_sampled-primary-5-pedagogical-5-500000_seed-274634520"
-                / "FLN_student-facing"
-                / "combined_gpt-4.1-mini_nexamples-200000_use-logprobs"
-            ),
-            "fl_teacher": (
-                RESULTS_DIR
-                / "tokens_max_512"
-                / "fwe-fortified_sampled-pedagogical-5-500000_seed-274634520"
-                / "FLN_teacher-facing"
-                / "combined_gpt-4.1-mini_nexamples-200000_use-logprobs"
-            ),
-        }
-
-        self.labels = {
-            model_type: self._load_labels(dataset_file)
-            for model_type, dataset_file in self.dataset_files.items()
-        }
-
         if self.endpoint is None:
-            self.models = {
-                "core_ed": "AI-for-Education/qurater_gemma-3-4b-pt_ds-ours_v2-200000",
-                "fl_student": str(
-                    ROOT
-                    / "checkpoints-preferences"
-                    / "qurater_gemma-3-4b-pt_bsz512_lr5e-5_epochs2_warmup0.1_conf0.5_labeltemp1.0_ds-fwe-fortified_sampled-primary-5-pedagogical-5-FLN_student-facing-500000-200000-512-274634520-gpt-4.1-mini-logprobs"
-                    / "checkpoint-340"
-                ),
-                "fl_teacher": str(
-                    ROOT
-                    / "checkpoints-preferences"
-                    / "qurater_gemma-3-4b-pt_bsz512_lr5e-5_epochs2_warmup0.1_conf0.5_labeltemp1.0_ds-fwe-fortified_sampled-pedagogical-5-FLN_teacher-facing-500000-200000-512-274634520-gpt-4.1-mini-logprobs"
-                    / "checkpoint-312"
-                ),
-            }
-            assert set(self.models) == set(self.dataset_files)
-
-            self.annotator_batch_size = annotator_batch_size
-
-            self.annotators = {
-                model_type: ModelAnnotator(
-                    str(model), self.labels[model_type], self.annotator_batch_size
-                )
-                for model_type, model in self.models.items()
-            }
-
-            self.tokenizers = {
-                model_type: TokenizeAndChunk(str(model), text_field, 512)
-                for model_type, model in self.models.items()
-            }
+            raise NotImplementedError
 
     def reward_fun_generator(
         self,
@@ -175,6 +114,7 @@ class QuratingReward:
 
     def _score_model(self, dataset: Dataset, model_type: str):
         if self.endpoint is None:
+            raise NotImplementedError
             annotator, tokenizer = (
                 self.annotators[model_type],
                 self.tokenizers[model_type],

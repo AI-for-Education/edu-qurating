@@ -29,9 +29,9 @@ if not hasattr(PreTrainedTokenizerBase, "all_special_tokens_extended"):
 load_dotenv(override=True)
 register_models(ROOT / "custom_models.yaml")
 
-USE_CFG = "qwen35/test2"
+USE_CFG = "qwen3/test4"
 NUM_GENERATIONS = 2
-PER_DEVICE_TRAIN_BATCH_SIZE = 2
+PER_DEVICE_TRAIN_BATCH_SIZE = 4
 USE_WANDB = True
 
 HERE = Path(__file__).resolve().parent
