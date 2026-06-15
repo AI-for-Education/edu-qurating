@@ -156,7 +156,7 @@ def load_filtered_batch(
 ):
     client = AzureBlobClient(**azure_client_kwargs)
     full_path = (
-        f"quratingfiltered-noemb/{model_string}/{subset}/{subset}_{batchi :04d}.parquet"
+        f"quratingfiltered-corrected-noemb/{model_string}/{subset}/{subset}_{batchi :04d}.parquet"
     )
     cloud_path = CloudPath(f"az://{full_path}", client=client)
     ## return null if it doesn't exist
@@ -192,7 +192,7 @@ def gen_filtered_batches_info(subset, model_string, azure_client_kwargs):
 def load_filtered_batch_info(subset, batchi, model_string, azure_client_kwargs):
     client = AzureBlobClient(**azure_client_kwargs)
     full_path = (
-        f"quratingfiltered-noemb/{model_string}/{subset}/{subset}_{batchi :04d}.parquet"
+        f"quratingfiltered-corrected-noemb/{model_string}/{subset}/{subset}_{batchi :04d}.parquet"
     )
     cloud_path = CloudPath(f"az://{full_path}", client=client)
     ## return null if it doesn't exist
