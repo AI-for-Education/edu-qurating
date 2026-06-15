@@ -62,8 +62,13 @@ pct = np.percentile(scores_arr, pct_edges, axis=0)
 print(pct)
 
 # %%
-filters = {col: pct[0, i].item() for i, col in enumerate(scores_df.columns[4:])}
-filter_greater_than = False
+use_cols = ["factual_accuracy_average", "lesson_engagement_average", "pedagogical_structure_average"]
+filters = {
+    col: pct[0, i].item()
+    for i, col in enumerate(scores_df.columns[1:])
+    if col in use_cols
+}
+filter_greater_than = True
 
 del df_list
 del scores_df

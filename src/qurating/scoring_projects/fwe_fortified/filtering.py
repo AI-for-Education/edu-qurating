@@ -15,9 +15,9 @@ def filter_subset(
     pool = pa.default_memory_pool()
 
     container = (
-        "quratingfiltered-noemb"
+        "quratingfiltered-corrected-noemb"
         if filter_greater_than
-        else "quratingfiltered-low-noemb"
+        else "quratingfiltered-corrected-low-noemb"
     )
 
     fwe_ds = load_dataset(
