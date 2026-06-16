@@ -62,6 +62,15 @@ pct = np.percentile(scores_arr, pct_edges, axis=0)
 print(pct)
 
 # %%
+# measure effect of percentile index misalignment on chosen rows
+mis_filt = (scores_arr[:, 3:] > pct[0, :3]).astype(int)
+correct_filt = (scores_arr[:, 3:] > pct[0, 3:]).astype(int)
+
+mis_index_logical = mis_filt.prod(axis=1)
+correct_index_logical = correct_filt.prod(axis=1)
+
+
+# %%
 use_cols = ["factual_accuracy_average", "lesson_engagement_average", "pedagogical_structure_average"]
 filters = {
     col: pct[0, i].item()
