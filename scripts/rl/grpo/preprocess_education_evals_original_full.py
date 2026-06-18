@@ -18,7 +18,7 @@ train_dir = evals_dir / "train"
 eval_dir = evals_dir / "eval"
 sheet_names = ["T1", "T2", "T3", "T4", "T5", "T6"]
 
-full_file = evals_dir / "2026-05-19 Tasks 1-6 working version.xlsx"
+full_file = evals_dir / "2026-06-08 Tasks 1-6 Tranches 1-2 SHARED.xlsx"
 
 all_sheets = pd.read_excel(full_file, sheet_name=sheet_names)
 
@@ -53,7 +53,6 @@ usecols = [
     "Good Response",
     "Okay Response",
     "Bad Response",
-    "split",
 ]
 
 for row in json.loads(filt_df[usecols].to_json(orient="records")):
@@ -61,19 +60,10 @@ for row in json.loads(filt_df[usecols].to_json(orient="records")):
     print(f"#" * 50)
 
 # %%
-train_df = filt_df.query("split == 'train'")
+test_df = filt_df.copy()
 seed = 957346
 rng = np.random.default_rng(seed=seed)
 
-nrows = len(train_df)
-sampidx = rng.choice(nrows, size=nrows * 10, replace=True)
-
-train_ds = Dataset.from_pandas(train_df[usecols].iloc[sampidx].reset_index())
-train_ds.save_to_disk(
-    evals_dir / "education_evals_combined_literacy_grade0-3_train.parquet"
-)
-
-test_df = filt_df.query("split == 'test'")
 test_ds = Dataset.from_pandas(test_df[usecols].reset_index())
 test_ds.save_to_disk(
     evals_dir / "education_evals_combined_literacy_grade0-3_test.parquet"

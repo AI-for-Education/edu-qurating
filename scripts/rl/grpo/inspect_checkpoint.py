@@ -9,6 +9,7 @@ import pandas as pd
 import numpy as np
 from unsloth import FastLanguageModel
 from unsloth.chat_templates import get_chat_template
+from transformers.tokenization_utils_base import PreTrainedTokenizerBase
 from datasets import Dataset, load_from_disk
 from vllm import SamplingParams
 
@@ -16,11 +17,19 @@ from qurating.constants import DATA_DIR
 
 from chat_templates import ReasoningStudentMaterial
 
+# Monkey-patch to add the missing attribute
+if not hasattr(PreTrainedTokenizerBase, "all_special_tokens_extended"):
+    PreTrainedTokenizerBase.all_special_tokens_extended = property(  # type: ignore
+        lambda self: self.all_special_tokens
+    )
+
 HERE = Path(__file__).resolve().parent
+
+checkpoint_dir_local = DATA_DIR / "grpo_checkpoints"
 
 max_seq_length = 2048
 max_prompt_length = 256
-max_lora_rank = 128
+max_lora_rank = 32
 
 qwen3_response_formatter = re.compile(
     r"(.+?)<|endoftext|>.*", flags=re.DOTALL | re.MULTILINE
@@ -28,7 +37,7 @@ qwen3_response_formatter = re.compile(
 
 pad_token = "<|PAD_TOKEN|>"
 
-DATASET = "interleaved"
+DATASET = "original_full"
 
 
 if DATASET == "interleaved":
@@ -47,8 +56,16 @@ elif DATASET == "original":
     SUBTASK_COLUMN = "Subtask Name"
     TOPIC_COLUMN = "Topic"
     INDEX_COLUMN = "index"
+elif DATASET == "original_full":
+    evals_dir = DATA_DIR / "education_evals_original_full"
+    CONTENT_COLUMN = "Rendered Prompt"
+    GOOD_RESPONSE_COLUMN = "Good Response"
+    TASK_COLUMN = "Task Name"
+    SUBTASK_COLUMN = "Subtask Name"
+    TOPIC_COLUMN = "Topic"
+    INDEX_COLUMN = "index"
 else:
-    raise ValueError("DATASET must be one of 'interleaved' or 'original")
+    raise ValueError("DATASET must be one of 'interleaved', 'original', or 'original_full")
 
 # %%
 def parse_generated(generated, test_config, tokenizer):
@@ -80,7 +97,7 @@ test_configs = {
     #         "test1/outputs/checkpoint-1000",
     #         "test1/outputs/checkpoint-2000",
     #     ],
-    #     "system_prompt": "/flnteach",
+    #     "system_prompt": "/flteacher",
     #     "chat_template": "qwen-3",
     #     "group_idx": 0,
     # },
@@ -90,7 +107,7 @@ test_configs = {
     #         "test2/outputs/checkpoint-1000",
     #         "test2/outputs/checkpoint-2000",
     #     ],
-    #     "system_prompt": "/flnteach",
+    #     "system_prompt": "/flteacher",
     #     "chat_template": "qwen-3",
     #     "group_idx": 0,
     # },
@@ -100,7 +117,7 @@ test_configs = {
     #         "test3/outputs/checkpoint-1000",
     #         "test3/outputs/checkpoint-2000",
     #     ],
-    #     "system_prompt": "/flnteach",
+    #     "system_prompt": "/flteacher",
     #     "chat_template": "qwen-3",
     #     "group_idx": 0,
     # },
@@ -110,7 +127,7 @@ test_configs = {
     #         "test4/outputs/checkpoint-1000",
     #         "test4/outputs/checkpoint-2000",
     #     ],
-    #     "system_prompt": "/flnteach",
+    #     "system_prompt": "/flteacher",
     #     "chat_template": "qwen-3",
     #     "group_idx": 0,
     # },
@@ -120,7 +137,7 @@ test_configs = {
             "test5/outputs/checkpoint-1000",
             "test5/outputs/checkpoint-2000",
         ],
-        "system_prompt": "/flnteach",
+        "system_prompt": "/flteacher",
         "chat_template": "qwen-3",
         "group_idx": 0,
     },
@@ -130,7 +147,7 @@ test_configs = {
             "test6/outputs/checkpoint-1000",
             "test6/outputs/checkpoint-2000",
         ],
-        "system_prompt": "/flnteach",
+        "system_prompt": "/flteacher",
         "chat_template": "qwen-3",
         "group_idx": 0,
     },
@@ -140,7 +157,7 @@ test_configs = {
             "test7/outputs/checkpoint-1000",
             "test7/outputs/checkpoint-2000",
         ],
-        "system_prompt": "/flnteach",
+        "system_prompt": "/flteacher",
         "chat_template": "qwen-3",
         "group_idx": 0,
     },
@@ -150,7 +167,7 @@ test_configs = {
             "test8/outputs/checkpoint-1000",
             "test8/outputs/checkpoint-2000",
         ],
-        "system_prompt": "/flnteach",
+        "system_prompt": "/flteacher",
         "chat_template": "qwen-3",
         "group_idx": 0,
     },
@@ -160,7 +177,7 @@ test_configs = {
             "test9/outputs/checkpoint-1000",
             "test9/outputs/checkpoint-2000",
         ],
-        "system_prompt": "/flnteach",
+        "system_prompt": "/flteacher",
         "chat_template": "qwen-3",
         "group_idx": 0,
     },
@@ -170,7 +187,7 @@ test_configs = {
             "test10/outputs/checkpoint-1000",
             "test10/outputs/checkpoint-2000",
         ],
-        "system_prompt": "/flnteach",
+        "system_prompt": "/flteacher",
         "chat_template": "qwen-3",
         "group_idx": 0,
     },
@@ -180,7 +197,7 @@ test_configs = {
             "instruction_following/test1/outputs/checkpoint-1000",
             "instruction_following/test1/outputs/checkpoint-2000",
         ],
-        "system_prompt": "/flnteach",
+        "system_prompt": "/flteacher",
         "chat_template": "qwen-3",
         "group_idx": 0,
     },
@@ -190,7 +207,7 @@ test_configs = {
             "instruction_following/test2/outputs/checkpoint-1000",
             "instruction_following/test2/outputs/checkpoint-2000",
         ],
-        "system_prompt": "/flnteach",
+        "system_prompt": "/flteacher",
         "chat_template": "qwen-3",
         "group_idx": 0,
     },
@@ -200,7 +217,7 @@ test_configs = {
             "instruction_following/test3/outputs/checkpoint-1000",
             "instruction_following/test3/outputs/checkpoint-2000",
         ],
-        "system_prompt": "/flnteach",
+        "system_prompt": "/flteacher",
         "chat_template": "qwen-3",
         "group_idx": 0,
     },
@@ -210,7 +227,7 @@ test_configs = {
             "instruction_following/test4/outputs/checkpoint-1000",
             "instruction_following/test4/outputs/checkpoint-2000",
         ],
-        "system_prompt": "/flnteach",
+        "system_prompt": "/flteacher",
         "chat_template": "qwen-3",
         "group_idx": 0,
     },
@@ -220,7 +237,7 @@ test_configs = {
             "instruction_following/test5/outputs/checkpoint-1000",
             "instruction_following/test5/outputs/checkpoint-2000",
         ],
-        "system_prompt": "/flnteach",
+        "system_prompt": "/flteacher",
         "chat_template": "qwen-3",
         "group_idx": 0,
     },
@@ -230,7 +247,7 @@ test_configs = {
             "instruction_following/test6/outputs/checkpoint-1000",
             "instruction_following/test6/outputs/checkpoint-2000",
         ],
-        "system_prompt": "/flnteach",
+        "system_prompt": "/flteacher",
         "chat_template": "qwen-3",
         "group_idx": 0,
     },
@@ -240,7 +257,7 @@ test_configs = {
             "instruction_following/test7/outputs/checkpoint-1000",
             "instruction_following/test7/outputs/checkpoint-2000",
         ],
-        "system_prompt": "/flnteach",
+        "system_prompt": "/flteacher",
         "chat_template": "qwen-3",
         "group_idx": 0,
     },
@@ -250,7 +267,7 @@ test_configs = {
             "instruction_following/test8/outputs/checkpoint-1000",
             "instruction_following/test8/outputs/checkpoint-2000",
         ],
-        "system_prompt": "/flnteach",
+        "system_prompt": "/flteacher",
         "chat_template": "qwen-3",
         "group_idx": 0,
     },
@@ -260,7 +277,7 @@ test_configs = {
             "instruction_following/test9/outputs/checkpoint-1000",
             "instruction_following/test9/outputs/checkpoint-2000",
         ],
-        "system_prompt": "/flnteach",
+        "system_prompt": "/flteacher",
         "chat_template": "qwen-3",
         "group_idx": 0,
     },
@@ -270,30 +287,30 @@ test_configs = {
     #         "instruction_following_128/test1/outputs/checkpoint-1000",
     #         "instruction_following_128/test1/outputs/checkpoint-2000",
     #     ],
-    #     "system_prompt": "/flnteach",
+    #     "system_prompt": "/flteacher",
     #     "chat_template": "qwen-3",
     #     "group_idx": 0,
     # },
-    "interleaved_scoring/test1": {
-        "description": "core_ed_reduced-flteach_interleaved_scoring-instruction_following",
-        "checkpoints": [
-            "interleaved_scoring/test1/outputs/checkpoint-1000",
-            "interleaved_scoring/test1/outputs/checkpoint-2000",
-        ],
-        "system_prompt": "/flnteach",
-        "chat_template": "qwen-3",
-        "group_idx": 0,
-    },
-    "interleaved_scoring/test2": {
-        "description": "core_ed_reduced-flteach_interleaved_scoring_cap24-instruction_following",
-        "checkpoints": [
-            "interleaved_scoring/test2/outputs/checkpoint-1000",
-            "interleaved_scoring/test2/outputs/checkpoint-2000",
-        ],
-        "system_prompt": "/flnteach",
-        "chat_template": "qwen-3",
-        "group_idx": 0,
-    },
+    # "interleaved_scoring/test1": {
+    #     "description": "core_ed_reduced-flteach_interleaved_scoring-instruction_following",
+    #     "checkpoints": [
+    #         "interleaved_scoring/test1/outputs/checkpoint-1000",
+    #         "interleaved_scoring/test1/outputs/checkpoint-2000",
+    #     ],
+    #     "system_prompt": "/flteacher",
+    #     "chat_template": "qwen-3",
+    #     "group_idx": 0,
+    # },
+    # "interleaved_scoring/test2": {
+    #     "description": "core_ed_reduced-flteach_interleaved_scoring_cap24-instruction_following",
+    #     "checkpoints": [
+    #         "interleaved_scoring/test2/outputs/checkpoint-1000",
+    #         "interleaved_scoring/test2/outputs/checkpoint-2000",
+    #     ],
+    #     "system_prompt": "/flteacher",
+    #     "chat_template": "qwen-3",
+    #     "group_idx": 0,
+    # },
     # "reasoning/test1": {
     #     "description": "reasoning-core_ed_fl_teacher-material-core_ed_fl_student",
     #     "checkpoints": [
@@ -306,6 +323,76 @@ test_configs = {
     #     "formatter_requires_tokenizer": True,
     #     "group_idx": {"reasoning": 0, "student_material": 2, "response": 3},
     # },
+    "qwen3/test2": {
+        "description": "reading_comprehension-instruction_following",
+        "checkpoints": [
+            "qwen3/test2/checkpoint-1000",
+            "qwen3/test2/checkpoint-2000",
+        ],
+        "system_prompt": "/flteacher",
+        "chat_template": "qwen-3",
+        "group_idx": 0,
+    },
+    "qwen3/test3": {
+        "description": "writing_encoding-instruction_following",
+        "checkpoints": [
+            "qwen3/test3/checkpoint-1000",
+            "qwen3/test3/checkpoint-2000",
+        ],
+        "system_prompt": "/flteacher",
+        "chat_template": "qwen-3",
+        "group_idx": 0,
+    },
+    "qwen3/test4": {
+        "description": "systematic_phonics-instruction_following",
+        "checkpoints": [
+            "qwen3/test4/checkpoint-1000",
+            "qwen3/test4/checkpoint-2000",
+        ],
+        "system_prompt": "/flteacher",
+        "chat_template": "qwen-3",
+        "group_idx": 0,
+    },
+    "qwen3/test5": {
+        "description": "oral_language_vocabulary-instruction_following",
+        "checkpoints": [
+            "qwen3/test5/checkpoint-1000",
+            "qwen3/test5/checkpoint-2000",
+        ],
+        "system_prompt": "/flteacher",
+        "chat_template": "qwen-3",
+        "group_idx": 0,
+    },
+    "qwen3/test6": {
+        "description": "phonological_awareness-instruction_following",
+        "checkpoints": [
+            "qwen3/test6/checkpoint-1000",
+            "qwen3/test6/checkpoint-2000",
+        ],
+        "system_prompt": "/flteacher",
+        "chat_template": "qwen-3",
+        "group_idx": 0,
+    },
+    "qwen3/test7": {
+        "description": "reading_fluency-instruction_following",
+        "checkpoints": [
+            "qwen3/test7/checkpoint-1000",
+            "qwen3/test7/checkpoint-2000",
+        ],
+        "system_prompt": "/flteacher",
+        "chat_template": "qwen-3",
+        "group_idx": 0,
+    },
+    "qwen3/test8": {
+        "description": "pedagogical_quality-instruction_following",
+        "checkpoints": [
+            "qwen3/test8/checkpoint-1000",
+            "qwen3/test8/checkpoint-2000",
+        ],
+        "system_prompt": "/flteacher",
+        "chat_template": "qwen-3",
+        "group_idx": 0,
+    },
     "base_model": {
         "description": "Qwen3-4B-Base",
         "checkpoints": ["unsloth/Qwen3-4B-Base"],
@@ -331,6 +418,10 @@ if DATASET == "interleaved":
     test_ds = test_ds.map(lambda row: {INDEX_COLUMN: f"{row['hash']}_{hash_extra(row)}"})
     test_ds = test_ds.select(range(1000))
 elif DATASET == "original":
+    test_ds = load_from_disk(
+        str(evals_dir / "education_evals_combined_literacy_grade0-3_test.parquet")
+    )
+elif DATASET == "original_full":
     test_ds = load_from_disk(
         str(evals_dir / "education_evals_combined_literacy_grade0-3_test.parquet")
     )
@@ -375,6 +466,9 @@ if DATASET == "interleaved":
     cache_file = HERE / "GRPO_tests_flteach_grpo_dataset.jsonl"
 elif DATASET == "original":
     cache_file = HERE / "GRPO_tests.jsonl"
+elif DATASET == "original_full":
+    cache_file = HERE / "GRPO_tests_full.jsonl"
+
     
 res_list = []
 if cache_file.exists():
@@ -413,7 +507,7 @@ for test_name, test_config in test_configs.items():
                 tokenizer = get_chat_template(tokenizer, chat_template=chat_template)
             else:
                 tokenizer.chat_template = chat_template()
-            lora_request = model.load_lora(str(HERE / checkpoint))
+            lora_request = model.load_lora(str(checkpoint_dir_local / checkpoint))
 
         system_prompt = test_config.get("system_prompt")
         resume_ds = test_ds.select(range(resume_point_ckpt, len(test_ds)))
@@ -503,5 +597,7 @@ if DATASET == "interleaved":
     pivot_df.to_csv(HERE / "GRPO_tests_FLN_flteach_grpo_dataset.csv", encoding="utf_8_sig")
 elif DATASET == "original":
     pivot_df.to_csv(HERE / "GRPO_tests_FLN.csv", encoding="utf_8_sig")
+elif DATASET == "original_full":
+    pivot_df.to_csv(HERE / "GRPO_tests_full_FLN.csv", encoding="utf_8_sig")
 
 # %%
