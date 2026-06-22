@@ -32,6 +32,12 @@ variable_maps["base_model"]["base_model"] = "unsloth/Qwen3-4B-Base"
 
 variable_maps["reward"] = {key: val.get("reward", {}) for key, val in cfg_map.items()}
 
+# NOTE: for reward_descriptor, the label refers to which things were included in the reward function:
+# core-ed: core-educational model was included
+# <fl-dimension> (e.g. writing-encoding): this dimension of fl-teacher model was included
+# fl_teacher: all dimensions of fl-teacher were included together
+# correctness_reward: correctness reward was included (LLM-as-a-judge vs good response as reference)
+# length_target: length matching reward was included (vs good response reference)
 variable_maps["reward_descriptor"] = {}
 for key, val in cfg_map.items():
     qr_reward_list = val.get("reward", {}).get("qurating", [])
