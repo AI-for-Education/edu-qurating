@@ -4,10 +4,13 @@ from pathlib import Path
 import pandas as pd
 import yaml
 
+from qurating.constants import DATA_DIR
+
 HERE = Path(__file__).resolve().parent
+DATA_DIR_GRPO_EVALS = DATA_DIR / "grpo_evals"
 
 # %%
-judge_csv = HERE / "judge_all_full_fln.csv"
+judge_csv = DATA_DIR_GRPO_EVALS / "judge_all_full_fln.csv"
 
 judge_df = pd.read_csv(judge_csv)
 
@@ -45,6 +48,18 @@ for key, val in cfg_map.items():
     efn_list = sorted(val.get("reward", {}).get("extra_functions", []))
     extra_descr = "-".join(efn_list)
     variable_maps["reward_descriptor"][key] = "-".join([qrr_descr, extra_descr])
+
+variable_maps["reward_descriptor_fl"] = {}
+for key, val in cfg_map.items():
+    qr_reward_list = val.get("reward", {}).get("qurating", [])
+    qrr_descr = "-".join(
+        sorted(
+            qrr["name"]
+            for qrr in qr_reward_list
+            if qrr["name"] not in ["core_ed", "fl_teacher"]
+        )
+    )
+    variable_maps["reward_descriptor_fl"][key] = qrr_descr
 
 variable_maps["checkpoint"] = {}
 for key in cfg_map:

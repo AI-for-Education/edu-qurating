@@ -24,6 +24,7 @@ if not hasattr(PreTrainedTokenizerBase, "all_special_tokens_extended"):
     )
 
 HERE = Path(__file__).resolve().parent
+DATA_DIR_GRPO_EVALS = DATA_DIR / "grpo_evals"
 
 checkpoint_dir_local = DATA_DIR / "grpo_checkpoints"
 
@@ -463,11 +464,11 @@ model = FastLanguageModel.get_peft_model(
 )
 # %%
 if DATASET == "interleaved":
-    cache_file = HERE / "GRPO_tests_flteach_grpo_dataset.jsonl"
+    cache_file = DATA_DIR_GRPO_EVALS / "GRPO_tests_flteach_grpo_dataset.jsonl"
 elif DATASET == "original":
-    cache_file = HERE / "GRPO_tests.jsonl"
+    cache_file = DATA_DIR_GRPO_EVALS / "GRPO_tests.jsonl"
 elif DATASET == "original_full":
-    cache_file = HERE / "GRPO_tests_full.jsonl"
+    cache_file = DATA_DIR_GRPO_EVALS / "GRPO_tests_full.jsonl"
 
     
 res_list = []
@@ -594,10 +595,10 @@ pivot_df = res_df.pivot(
 
 
 if DATASET == "interleaved":
-    pivot_df.to_csv(HERE / "GRPO_tests_FLN_flteach_grpo_dataset.csv", encoding="utf_8_sig")
+    pivot_df.to_csv(DATA_DIR_GRPO_EVALS / "GRPO_tests_FLN_flteach_grpo_dataset.csv", encoding="utf_8_sig")
 elif DATASET == "original":
-    pivot_df.to_csv(HERE / "GRPO_tests_FLN.csv", encoding="utf_8_sig")
+    pivot_df.to_csv(DATA_DIR_GRPO_EVALS / "GRPO_tests_FLN.csv", encoding="utf_8_sig")
 elif DATASET == "original_full":
-    pivot_df.to_csv(HERE / "GRPO_tests_full_FLN.csv", encoding="utf_8_sig")
+    pivot_df.to_csv(DATA_DIR_GRPO_EVALS / "GRPO_tests_full_FLN.csv", encoding="utf_8_sig")
 
 # %%
