@@ -1,5 +1,5 @@
 project_name: "Content Curation"
-droplet_name: "cc-1x-h200"
+droplet_name: "cc-6000adax"
 size_slug: "gpu-6000adax1-48gb"
 image: "214151830"
 ssh_keys:
