@@ -1,0 +1,81 @@
+# Proposed final Hugging Face repository names for Edu-QuRating model uploads.
+# Update this file first if the final naming convention changes.
+
+models:
+  - final_repo_id: AI-for-Education/qurating-core-ed-gemma-3-4b
+    model_card: model_cards/qurating-core-ed-gemma-3-4b.md
+    rubric: core_ed
+    display_name: Edu-QuRating Core Educational Scorer
+    backbone: Gemma-3-4B-PT
+    labels: 6
+    legacy_or_staging_repo_ids:
+      - AI-for-Education/qurating_core_ed_gemma-3-4b
+      - AI-for-Education/qurating-core-ed-gemma-3-4b
+
+  - final_repo_id: AI-for-Education/qurating-core-ed-qwen-3-4b
+    model_card: model_cards/qurating-core-ed-qwen-3-4b.md
+    rubric: core_ed
+    display_name: Edu-QuRating Core Educational Scorer
+    backbone: Qwen3-Reranker-4B
+    labels: 6
+    legacy_or_staging_repo_ids:
+      - AI-for-Education/qurating_core_ed_qwen-3-4b
+      - AI-for-Education/qurating-core-ed-qwen-3-4b
+
+  - final_repo_id: AI-for-Education/qurating-fl-student-gemma-3-4b
+    model_card: model_cards/qurating-fl-student-gemma-3-4b.md
+    rubric: fl_student
+    display_name: Edu-QuRating Foundational Literacy Student-Facing Scorer
+    backbone: Gemma-3-4B-PT
+    labels: 7
+    legacy_or_staging_repo_ids:
+      - AI-for-Education/qurating_fl_student_gemma-3-4b
+      - AI-for-Education/qurating-fl-student-gemma-3-4b
+
+  - final_repo_id: AI-for-Education/qurating-fl-student-qwen-3-4b
+    model_card: model_cards/qurating-fl-student-qwen-3-4b.md
+    rubric: fl_student
+    display_name: Edu-QuRating Foundational Literacy Student-Facing Scorer
+    backbone: Qwen3-Reranker-4B
+    labels: 7
+    legacy_or_staging_repo_ids:
+      - AI-for-Education/qurating_fl_student_qwen-3-4b
+      - AI-for-Education/qurating-fl-student-qwen-3-4b
+
+  - final_repo_id: AI-for-Education/qurating-fl-teacher-gemma-3-4b
+    model_card: model_cards/qurating-fl-teacher-gemma-3-4b.md
+    rubric: fl_teacher
+    display_name: Edu-QuRating Foundational Literacy Teacher-Facing Scorer
+    backbone: Gemma-3-4B-PT
+    labels: 7
+    legacy_or_staging_repo_ids:
+      - AI-for-Education/qurating_fl_teacher_gemma-3-4b
+      - AI-for-Education/qurating-fl-teacher-gemma-3-4b
+
+  - final_repo_id: AI-for-Education/qurating-fl-teacher-qwen-3-4b
+    model_card: model_cards/qurating-fl-teacher-qwen-3-4b.md
+    rubric: fl_teacher
+    display_name: Edu-QuRating Foundational Literacy Teacher-Facing Scorer
+    backbone: Qwen3-Reranker-4B
+    labels: 7
+    legacy_or_staging_repo_ids:
+      - AI-for-Education/qurating_fl_teacher_qwen-3-4b
+      - AI-for-Education/qurating-fl-teacher-qwen-3-4b
+
+  - final_repo_id: AI-for-Education/qurater_gemma-3-4b-pt_ds-ours_v2-200000
+    model_card: model_cards/qurater_gemma-3-4b-pt_ds-ours_v2-200000.md
+    rubric: core_ed
+    display_name: Legacy QuRater Core Educational Scorer
+    backbone: Gemma-3-4B-PT
+    labels: 6
+    status: current_legacy_repo
+    proposed_replacement_repo_id: AI-for-Education/qurating-core-ed-gemma-3-4b
+
+  - final_repo_id: AI-for-Education/qurater_Qwen3-Reranker-4B-seq-cls_ds-ours_v2-200000
+    model_card: model_cards/qurater_Qwen3-Reranker-4B-seq-cls_ds-ours_v2-200000.md
+    rubric: core_ed
+    display_name: Legacy QuRater Core Educational Scorer
+    backbone: Qwen3-Reranker-4B
+    labels: 6
+    status: current_legacy_repo
+    proposed_replacement_repo_id: AI-for-Education/qurating-core-ed-qwen-3-4b
