@@ -1,6 +1,6 @@
 """
 Script to approximately randomly sample from large fineweb-edu-fortified dataset.
-The dataset is actually split over 95 different datasets, each corresponding to 
+The dataset is actually split over 95 different datasets, each corresponding to
 a different dump of the common crawl.
 
 Each of these datsets is further split into ~20-50 shards.
@@ -9,7 +9,7 @@ Due to the size of the datasets, we load as a streaming dataset, which complicat
 randomization. Randomization of streaming datasets relies on a buffer which is filled
 in memory. This buffer is filled *in order*, such that a buffer of size n will be initially
 filled with the first n rows of the dataset. Samples are drawn randomly from the buffer, and
-the buffer is filled with the next rows in order after each sample is taken. Shards are also 
+the buffer is filled with the next rows in order after each sample is taken. Shards are also
 randomised, but importantly, the buffer still fills with contiguous rows from the same shard.
 
 The only way to get true randomisation is if buffer_size == n_rows.
@@ -39,8 +39,11 @@ from datasets import load_dataset, get_dataset_config_names, Dataset
 import numpy as np
 from tqdm import tqdm
 from joblib import Parallel, delayed
+from dotenv import load_dotenv
 
 from qurating.constants import DATASETS_DIR
+
+load_dotenv(override=True)
 
 # %%
 ### configs are the different datasets (95, corresponding to CC dumps)
@@ -65,6 +68,7 @@ for config in use_configs:
         name=config,
         split="train",
         streaming=True,
+        token=True,
     )
 
 # %%
@@ -102,7 +106,7 @@ index_probability = np.hstack([shard_prob for shard_prob in fw_sharded_ratio.val
 
 # %%
 ### sample the number from each config / shard from a multinomial with p = index_probability
-n = 20000
+n = 500000
 rng = np.random.default_rng(seed=2163454098)
 n_samples = rng.multinomial(n=n, pvals=index_probability, size=1).ravel()
 
@@ -113,7 +117,8 @@ print(n_samples.sum())
 
 # %%
 #### shuffle shards separately
-buffer_size = max(n * 2, 20000)
+buffer_size = min(n * 2, 20000)
+print(f"Buffer size: {buffer_size}")
 main_seed = 72353534
 rng = np.random.default_rng(seed=main_seed)
 shard_order_seed = rng.integers(low=0, high=2 ^ 32 - 1)
@@ -137,7 +142,7 @@ def take_ns(ds, ns, shard_info):
     if ns > 0:
         try:
             return list(ds.take(ns)), shard_info
-        except:
+        except Exception:
             return None, shard_info
 
 
@@ -159,6 +164,7 @@ print(len(flat_shards))
 # As the main bottleneck is downloading the data to fill the buffer, threading
 # a decent speed up. Didn't observe much additional improvement with multi-processing.
 njobs = int(40 / (0.8 * (buffer_size / 10000)))
+
 st = time.perf_counter()
 p = Parallel(n_jobs=njobs, verbose=80, backend="threading")
 samples = p(
@@ -203,4 +209,3 @@ sampled_ds_final_shuffled = sampled_ds.shuffle().flatten_indices(keep_in_memory=
 sampled_ds_final_shuffled.to_parquet(
     DATASETS_DIR / f"fwe-fortified_sampled-{n}_seed-{main_seed}.parquet"
 )
-

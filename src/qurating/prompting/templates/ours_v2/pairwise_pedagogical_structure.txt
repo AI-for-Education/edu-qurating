@@ -1,0 +1,23 @@
+Compare two text excerpts and choose the text which has clearer pedagogical structure for the intended learners.
+
+Prefer:
+- Sequenced steps and clear signposting (including step-by-step reasoning or worked examples where appropriate)
+- Accessible vocabulary (specialised terms are briefly glossed or clearly inferable from context; avoid unnecessary jargon)
+- Concrete-to-abstract progression and aligned examples/worked steps- Consistent terminology/notation
+- Minimal extraneous load (avoid irrelevant detail)
+
+Ignore:
+- Factual accuracy, learner engagement/motivation, educational level
+
+Note that the texts are cut off, so you have to infer their contexts.
+The texts might have similar quality, but you should still make a relative judgement and choose the label of the preferred text.
+
+[Option {label_a}]
+... {text_a} ...
+
+
+[Option {label_b}]
+... {text_b} ...
+
+
+Now you have to choose between either {label_a} or {label_b}. Respond only with a single word.

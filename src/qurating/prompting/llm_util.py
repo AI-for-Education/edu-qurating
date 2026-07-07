@@ -1,16 +1,15 @@
-from typing import List, Literal
+from typing import List, Literal, get_args
 import os
 import time
-import json
-from filelock import FileLock
 import random
+import asyncio
 
+import numpy as np
 from anthropic import Anthropic, HUMAN_PROMPT, AI_PROMPT
-import openai
-import tiktoken
-from fdllm import LLMMessage, get_caller
+from fdllm import LLMMessage, get_caller, OpenAICaller, GoogleGenAICaller
 from fdllm.llmtypes import LLMCaller
 from pydantic import BaseModel
+import tiktoken
 
 
 class ResponseFormat(BaseModel):
@@ -50,6 +49,168 @@ class ResponseFormat(BaseModel):
 RANDOM = random.Random()
 
 
+async def aquery_model_logprobs(
+    prompt: str,
+    model: str | LLMCaller,
+    system_prompt: str = None,
+    retries: int = 1,
+    log_file_path: str = "openai_api_cost.jsonl",
+):
+    def logit_pairs_to_probs(logitsa, logitsb):
+        def sigmoid(x):
+            odds = np.exp(x)
+            return odds / (odds + 1)
+
+        logit_diffs = logitsa - logitsb
+        probs = sigmoid(logit_diffs)
+        out = np.zeros((probs.shape[0], 2))
+        out[:, 0] = probs
+        out[:, 1] = 1 - probs
+        return out
+
+    if isinstance(model, str):
+        caller = get_caller(model)
+    elif isinstance(model, LLMCaller):
+        caller = model
+
+    if not isinstance(caller, (OpenAICaller, GoogleGenAICaller)):
+        raise NotImplementedError(
+            "Model must use OpenAI or Google GenAI API interfaces for logprobs version"
+        )
+
+    # enc = tiktoken.encoding_for_model(caller.Model.Name)
+    labels = get_args(ResponseFormat.model_fields["choice"].annotation)
+    max_tokens = None
+    # label_tokens = [enc.encode(label) for label in labels]
+    # logit_bias = {
+    #     str(token): 100
+    #     for token in set.union(*(set(tokens) for tokens in label_tokens))
+    # }
+    # max_tokens = max(len(tokens) for tokens in label_tokens)
+
+    messages = []
+    if system_prompt is not None:
+        messages.append(LLMMessage(Role="system", Message=system_prompt))
+    messages.append(LLMMessage(Role="user", Message=prompt))
+
+    is_ok = False
+    retry_count = 0
+
+    while not is_ok:
+        try:
+            response = await caller.acall(
+                messages,
+                max_tokens=max_tokens,
+                # logit_bias=logit_bias,
+                logprobs=True,
+                top_logprobs=19,
+            )
+            lp = {
+                lpt.token: lpt.logprob
+                for lpt in response.LogProbs.content[0].top_logprobs
+            }
+            lp = {lab: lp.get(lab, -100) for lab in labels}
+            probs = logit_pairs_to_probs(*np.array(list(lp.values()))[:, None]).tolist()
+            is_ok = True
+        except Exception as error:
+            if "Please retry after" in str(error):
+                timeout = (
+                    int(str(error).split("Please retry after ")[1].split(" second")[0])
+                    + 5 * RANDOM.random()
+                )
+                print(f"Wait {timeout}s before API retry ({error})")
+                await asyncio.sleep(timeout)
+            elif retry_count < retries:
+                print(f"API retry for {retry_count} times ({error})")
+                await asyncio.sleep(50)
+                retry_count += 1
+            else:
+                print(f"API failed for {retry_count} times ({error})")
+                return [[-100, -100]]
+    return probs
+
+
+def query_model_logprobs(
+    prompt: str,
+    model: str | LLMCaller,
+    system_prompt: str = None,
+    retries: int = 1,
+    log_file_path: str = "openai_api_cost.jsonl",
+):
+    def logit_pairs_to_probs(logitsa, logitsb):
+        def sigmoid(x):
+            odds = np.exp(x)
+            return odds / (odds + 1)
+
+        logit_diffs = logitsa - logitsb
+        probs = sigmoid(logit_diffs)
+        out = np.zeros((probs.shape[0], 2))
+        out[:, 0] = probs
+        out[:, 1] = 1 - probs
+        return out
+
+    if isinstance(model, str):
+        caller = get_caller(model)
+    elif isinstance(model, LLMCaller):
+        caller = model
+
+    if not isinstance(caller, (OpenAICaller, GoogleGenAICaller)):
+        raise NotImplementedError(
+            "Model must use OpenAI or Google GenAI API interfaces for logprobs version"
+        )
+
+    # enc = tiktoken.encoding_for_model(caller.Model.Name)
+    labels = get_args(ResponseFormat.model_fields["choice"].annotation)
+    max_tokens = None
+    # label_tokens = [enc.encode(label) for label in labels]
+    # logit_bias = {
+    #     str(token): 100
+    #     for token in set.union(*(set(tokens) for tokens in label_tokens))
+    # }
+    # max_tokens = max(len(tokens) for tokens in label_tokens)
+
+    messages = []
+    if system_prompt is not None:
+        messages.append(LLMMessage(Role="system", Message=system_prompt))
+    messages.append(LLMMessage(Role="user", Message=prompt))
+
+    is_ok = False
+    retry_count = 0
+
+    while not is_ok:
+        try:
+            response = caller.call(
+                messages,
+                max_tokens=max_tokens,
+                # logit_bias=logit_bias,
+                logprobs=True,
+                top_logprobs=19,
+            )
+            lp = {
+                lpt.token: lpt.logprob
+                for lpt in response.LogProbs.content[0].top_logprobs
+            }
+            lp = {lab: lp.get(lab, -100) for lab in labels}
+            probs = logit_pairs_to_probs(*np.array(list(lp.values()))[:, None]).tolist()
+            is_ok = True
+        except Exception as error:
+            if "Please retry after" in str(error):
+                timeout = (
+                    int(str(error).split("Please retry after ")[1].split(" second")[0])
+                    + 5 * RANDOM.random()
+                )
+                print(f"Wait {timeout}s before API retry ({error})")
+                time.sleep(timeout)
+            elif retry_count < retries:
+                print(f"API retry for {retry_count} times ({error})")
+                time.sleep(50)
+                retry_count += 1
+            else:
+                print(f"API failed for {retry_count} times ({error})")
+                return [[-100, -100]]
+    return probs
+
+
 async def aquery_model(
     prompt: str,
     model: str | LLMCaller,
@@ -58,12 +219,17 @@ async def aquery_model(
     retries: int = 1,
     log_file_path: str = "openai_api_cost.jsonl",
 ) -> List[str]:
+    if isinstance(model, str):
+        caller = get_caller(model)
+    elif isinstance(model, LLMCaller):
+        caller = model
+
     if generations > 1:
         return [
             (
                 await aquery_model(
                     prompt=prompt,
-                    model=model,
+                    model=caller,
                     system_prompt=system_prompt,
                     generations=1,
                     retries=retries,
@@ -74,13 +240,7 @@ async def aquery_model(
         ]
     #############################################################
 
-    if isinstance(model, str):
-        caller = get_caller(model)
-    elif isinstance(model, LLMCaller):
-        caller = model
     model = caller.Model.Name
-
-    # enc = MODELS[model]["enc"]
 
     is_ok = False
     retry_count = 0
@@ -96,7 +256,7 @@ async def aquery_model(
                 messages,
                 max_tokens=None,
                 response_schema=ResponseFormat,
-                temperature=None,
+                temperature=1,
             )
             response_obj = ResponseFormat.model_validate_json(response.Message)
             choice = response_obj.choice
@@ -107,22 +267,30 @@ async def aquery_model(
                     int(str(error).split("Please retry after ")[1].split(" second")[0])
                     + 5 * RANDOM.random()
                 )
-                print(f"Wait {timeout}s before OpenAI API retry ({error})")
-                time.sleep(timeout)
+                print(f"Wait {timeout}s before API retry ({error})")
+                await asyncio.sleep(timeout)
             elif retry_count < retries:
-                print(f"OpenAI API retry for {retry_count} times ({error})")
-                time.sleep(2)
+                print(f"API retry for {retry_count} times ({error})")
+                await asyncio.sleep(2)
                 retry_count += 1
             else:
-                print(f"OpenAI API failed for {retry_count} times ({error})")
-                return []
+                print(f"API failed for {retry_count} times ({error})")
+                return [None]
 
     generations = [choice]
 
-    usage = {
-        "prompt_tokens": response.TokensUsed - response.TokensUsedCompletion,
-        "completion_tokens": response.TokensUsedCompletion,
-    }
+    if all(
+        tk is not None for tk in (response.TokensUsed, response.TokensUsedCompletion)
+    ):
+        usage = {
+            "prompt_tokens": response.TokensUsed - response.TokensUsedCompletion,
+            "completion_tokens": response.TokensUsedCompletion,
+        }
+    else:
+        usage = {
+            "prompt_tokens": None,
+            "completion_tokens": None,
+        }
     # usage["prompt_cost"] = (
     #     MODELS[model]["prompt_cost_per_token"] * usage["prompt_tokens"]
     # )
@@ -132,9 +300,9 @@ async def aquery_model(
     # usage["cost"] = usage["prompt_cost"] + usage["response_cost"]
     usage["model"] = model
 
-    with FileLock(log_file_path + ".lock"):
-        with open(log_file_path, "a") as f:
-            f.write(json.dumps(usage) + "\n")
+    # with FileLock(log_file_path + ".lock"):
+    #     with open(log_file_path, "a") as f:
+    #         f.write(json.dumps(usage) + "\n")
 
     return generations
 
@@ -183,7 +351,7 @@ def query_model(
                 messages,
                 max_tokens=None,
                 response_schema=ResponseFormat,
-                temperature=None,
+                temperature=1,
             )
             response_obj = ResponseFormat.model_validate_json(response.Message)
             choice = response_obj.choice
@@ -202,14 +370,22 @@ def query_model(
                 retry_count += 1
             else:
                 print(f"OpenAI API failed for {retry_count} times ({error})")
-                return []
+                return [None]
 
     generations = [choice]
 
-    usage = {
-        "prompt_tokens": response.TokensUsed - response.TokensUsedCompletion,
-        "completion_tokens": response.TokensUsedCompletion,
-    }
+    if all(
+        tk is not None for tk in (response.TokensUsed, response.TokensUsedCompletion)
+    ):
+        usage = {
+            "prompt_tokens": response.TokensUsed - response.TokensUsedCompletion,
+            "completion_tokens": response.TokensUsedCompletion,
+        }
+    else:
+        usage = {
+            "prompt_tokens": None,
+            "completion_tokens": None,
+        }
     # usage["prompt_cost"] = (
     #     MODELS[model]["prompt_cost_per_token"] * usage["prompt_tokens"]
     # )
@@ -219,9 +395,9 @@ def query_model(
     # usage["cost"] = usage["prompt_cost"] + usage["response_cost"]
     usage["model"] = model
 
-    with FileLock(log_file_path + ".lock"):
-        with open(log_file_path, "a") as f:
-            f.write(json.dumps(usage) + "\n")
+    # with FileLock(log_file_path + ".lock"):
+    #     with open(log_file_path, "a") as f:
+    #         f.write(json.dumps(usage) + "\n")
 
     return generations
 

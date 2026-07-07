@@ -1,0 +1,29 @@
+Compare two text excerpts and choose the text which is more likely to engage, motivate, and affirm a young learner.
+
+Prefer:
+- Affirming Language:Uses first-or second-person statements of capability (e.g. "I can read," "You can do it").
+- Positive Emotion:Uses words expressing enjoyment or cooperation (e.g. "happy," "funny," "play together").
+- Inclusive Representation:Shows diverse characters, gender balance, or shared participation.
+- Relatable Tone:Feels supportive, lively, and child-centric
+
+Avoid:
+- Dry, purely expository, or abstract text.
+- Text with themes that are unrelatable, negative, or exclusionary for a child
+
+Aspects that should NOT influence your judgement:
+1. Which language the text is written in
+2. The length of the text
+3. The order in which the texts are presented
+
+Note that the texts are cut off, so you have to infer their contexts.
+The texts might have similar quality, but you should still make a relative judgement and choose the label of the preferred text.
+
+[Option {label_a}]
+... {text_a} ...
+
+
+[Option {label_b}]
+... {text_b} ...
+
+
+Now you have to choose between either {label_a} or {label_b}. Respond only with a single word.

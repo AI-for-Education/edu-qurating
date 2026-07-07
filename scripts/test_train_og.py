@@ -9,13 +9,17 @@ Contains excerpts of code from upstream training package
 from typing import Any, Dict
 from collections import namedtuple
 
+from dotenv import load_dotenv
 from datasets import Dataset
 from transformers import AutoTokenizer, AutoModelForSequenceClassification, AutoConfig
 import torch
 import matplotlib.pyplot as plt
 
 from qurating.constants import RESULTS_DIR
+from qurating.modeling.model_factory import create_model
+from qurating.modeling.flash_llama import LlamaForSequenceClassification
 
+load_dotenv(override=True)
 
 """
 DataCollator is the class that is responsible for taking batches from input dataset and returning input
@@ -37,6 +41,8 @@ Returns a dict of:
         for row i of the input (in other words, the 2 x 2 square centred on ith the diagional element). All elements of
         the output tensor outside of this area around the diagonal are treated as missing data for the loss calculation.
 """
+
+
 class DataCollator:
     def __init__(self, args, training_args, tokenizer):
         self.args = args
@@ -90,8 +96,11 @@ class DataCollator:
 # %%
 ## load the tokenizer for Sheared-LLaMa-1.3b
 
+# model = "princeton-nlp/Sheared-LLaMA-1.3b"
+model = "tomaarsen/Qwen3-Reranker-0.6B-seq-cls"
+
 tokenizer = AutoTokenizer.from_pretrained(
-    "princeton-nlp/Sheared-LLaMA-1.3b",
+    model,
     use_fast=True,
     legacy=False,
 )
@@ -103,15 +112,16 @@ tokenizer.pad_token_id = 0
 n_samples = 20000
 seed = 72353534
 
-model_name = "gpt-4.1-mini"
-num_examples = 500
+model_name = "gpt-5-mini-2025-08-07-minimal"
+num_examples = 20000
 
 dataset_base = f"fwe-fortified_sampled-{n_samples}_seed-{seed}"
 
 dataset_file = (
     RESULTS_DIR
+    / "tokens_max_512"
     / dataset_base
-    / "ours"
+    / "ours_v2"
     / f"combined_{model_name}_nexamples-{num_examples}.parquet"
 )
 
@@ -137,14 +147,20 @@ dc = DataCollator(args, (), tokenizer=tokenizer)
 
 # %%
 # load config for Sheared-LLaMA-1.3b
-config = AutoConfig.from_pretrained("princeton-nlp/Sheared-LLaMA-1.3b")
+# model = "princeton-nlp/Sheared-LLaMA-1.3b"
+config = AutoConfig.from_pretrained(model)
 # adjust the number of output labels to match
-config.num_labels = len(label_names)
-
+# config.num_labels = len(label_names)
 # instantiate model from updated config
+# model = AutoModelForSequenceClassification.from_pretrained(
+#     model, config=config
+# )
+
 model = AutoModelForSequenceClassification.from_pretrained(
-    "princeton-nlp/Sheared-LLaMA-1.3b", config=config
+    model, config=config, torch_dtype=torch.float16, attn_implementation="flash_attention_2"
 )
+
+# model.score = torch.nn.Linear(in_features=1, out_features=len(label_names))
 
 # %%
 # pass first 4 rows of dataset to DataCollator
@@ -175,3 +191,29 @@ probabilities for comparison with labels):
 outputs = model(**collected, use_cache=False)
 # convert the logits (ntexts x nlabels) to pairwise preference probablities (ntexts x ntexts x nlabels)
 logit_diffs = outputs.logits.unsqueeze(0) - outputs.logits.unsqueeze(1)
+
+# %%
+torch.cuda.is_available()
+
+torch.cuda.device_count()
+
+print(torch.cuda.get_device_name(0))
+print("__CUDNN VERSION:", torch.backends.cudnn.version())
+print("__Number CUDA Devices:", torch.cuda.device_count())
+print("__CUDA Device Name:", torch.cuda.get_device_name(0))
+print(
+    "__CUDA Device Total Memory [GB]:",
+    torch.cuda.get_device_properties(0).total_memory / 1e9,
+)
+print("Memory Usage:")
+print("Allocated:", round(torch.cuda.memory_allocated(0) / 1024**3, 1), "GB")
+print("Cached:   ", round(torch.cuda.memory_reserved(0) / 1024**3, 1), "GB")
+
+# %%
+model = create_model(
+    "./test_training_output/test_training_output/test_run_20k_epochs-20/checkpoint-360",
+    config=config,
+    dtype=torch.bfloat16,
+)
+
+model = model.to(torch.device("cuda:0"))

@@ -23,9 +23,6 @@ Using the [QuRating](https://arxiv.org/abs/2402.09739) method to filter LLM data
 ### Step 2
 
 - Training the regression model. 
-  - Use a more modern architecture?
-  - What compute / storage infrastructure?
-  - Might need to move from uv to pixi to support torch binaries
 
 
 ### Using this project
@@ -38,3 +35,27 @@ This project uses [dvc](https://dvc.org/) for data version control. You will nee
 
 You can then run `uv run dvc pull` to obtain the data files. 
 When entire folders are tracked `uv run dvc data status --granular` is a useful way to see all changes.
+
+## End-to-End Instructions
+
+
+**Note**: The codebase automatically detects your PyTorch installation and Flash Attention availability. If Flash Attention is not available or you're using CPU-only PyTorch, it gracefully falls back to standard models without any configuration needed.
+
+### Data Processing & Analysis
+```bash
+uv sync
+
+# Sample from large datasets
+uv run python scripts/test_dataset_og.py
+
+# Score texts with pairwise comparisons
+uv run python scripts/test_comparator_og.py
+
+# Test training workflow
+uv run python scripts/test_train.py
+
+# Run inference on trained models
+uv run python scripts/run_inference_pairwise.py input.parquet output.json \
+    --model path/to/trained/model \
+    --tokens 512 --batch_size 16
+```

@@ -162,6 +162,8 @@ dmypy.json
 # Cython debug symbols
 cython_debug/
 
+.vscode
+
 # PyCharm
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
 #  be found at https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore
@@ -174,3 +176,22 @@ cython_debug/
 .dvc/config.local
 custom_models.yaml
 logs
+
+test_training_output
+checkpoints-preferences
+cloud
+cache
+figures
+unsloth_compiled_cache
+unsloth_training_checkpoints
+outputs
+*_finetune_*
+*_finetune
+*_lora_*
+*_lora
+education_evals
+wandb
+grpo_checkpoints
+results
+data/qurating_models
+data/pretraining_eval_results

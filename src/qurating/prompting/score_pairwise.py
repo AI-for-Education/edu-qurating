@@ -1,12 +1,20 @@
 import argparse
+import asyncio
+from pathlib import Path
+import pickle
 
 from datasets import load_from_disk, load_dataset
 from transformers import AutoTokenizer
 import numpy as np
 from fdllm import get_caller
 
-from .llm_util import query_model, aquery_model
-from ..constants import LOG_DIR
+from .llm_util import (
+    query_model,
+    aquery_model,
+    query_model_logprobs,
+    aquery_model_logprobs,
+)
+from ..constants import LOG_DIR, CACHE_DIR
 
 
 class Comparator:
@@ -48,6 +56,9 @@ class Comparator:
         )
 
         parser.add_argument("--flat_output_format", action="store_true")
+        parser.add_argument("--cache_dir", type=str, default=str(CACHE_DIR))
+        parser.add_argument("--max-concurrency", type=int, default=20)
+        parser.add_argument("--logprobs", action="store_true")
 
     def __init__(self, args):
         self.args = args
@@ -59,6 +70,14 @@ class Comparator:
 
         self.offset = 0
         self.num_examples = 0
+        self.semaphore = asyncio.Semaphore(args.max_concurrency)
+
+        cache_logprobs_suffix = "_use-logprobs" if args.logprobs else ""
+        self.cache_dir = (
+            Path(args.cache_dir)
+            / f"{Path(args.template_file).stem}_{args.model}_{args.tokens_max}_{args.num_examples}{cache_logprobs_suffix}"
+        )
+        self.cache_dir.mkdir(exist_ok=True, parents=True)
 
     def __getstate__(self):
         return self.args
@@ -89,7 +108,9 @@ class Comparator:
 
     def parse_generations(self, generations):
         for generation in generations:
-            if generation == self.args.labels[0]:
+            if generation is None:
+                yield None
+            elif generation == self.args.labels[0]:
                 yield 0
             elif generation == self.args.labels[1]:
                 yield 1
@@ -106,42 +127,81 @@ class Comparator:
             return np.random.randint(self.args.tokens_min, self.args.tokens_max + 1)
 
     async def __acall__(self, examples, indices):
-        texts, caller, num_tokens, n, votes_a, votes_b, predictions = self._pre_call(
-            examples, indices
+        cache_hit, pre_call_output = self._pre_call(examples, indices)
+        if cache_hit:
+            cached_data = pre_call_output
+            if not self.args.flat_output_format:
+                return {
+                    **cached_data,
+                    "examples": [examples],
+                }
+            else:
+                return cached_data
+        else:
+            texts, caller, num_tokens, n, votes_a, votes_b, predictions = (
+                pre_call_output
+            )
+        probs = np.full((2, n, n), fill_value=-100.0)
+        async with self.semaphore:
+            for i in range(n):
+                for j in range(n):
+                    if i == j:
+                        continue
+
+                    prompt = self.args.template.format(
+                        text_a=texts[i],
+                        text_b=texts[j],
+                        label_a=self.args.labels[0],
+                        label_b=self.args.labels[1],
+                    )
+
+                    if self.args.logprobs:
+                        out_probs = await aquery_model_logprobs(
+                            prompt,
+                            caller,
+                            system_prompt=self.args.system_prompt,
+                            log_file_path=str(LOG_DIR / "api_cost.jsonl"),
+                            retries=5,
+                        )
+                        probs[:, i, j] = np.array(out_probs)
+                    else:
+                        ######### otherwise estimate probablity by counting over multiple runs
+                        generations = await aquery_model(
+                            prompt,
+                            caller,
+                            system_prompt=self.args.system_prompt,
+                            generations=self.args.generations,
+                            log_file_path=str(LOG_DIR / "api_cost.jsonl"),
+                            retries=0,
+                        )
+
+                        for vote in self.parse_generations(generations):
+                            if vote == 0:
+                                votes_a[i, j] += 1
+                            elif vote == 1:
+                                votes_b[i, j] += 1
+
+        return self._post_call(
+            examples, indices, texts, n, votes_a, votes_b, predictions, probs
         )
-        for i in range(n):
-            for j in range(n):
-                if i == j:
-                    continue
-
-                prompt = self.args.template.format(
-                    text_a=texts[i],
-                    text_b=texts[j],
-                    label_a=self.args.labels[0],
-                    label_b=self.args.labels[1],
-                )
-
-                generations = await aquery_model(
-                    prompt,
-                    caller,
-                    system_prompt=self.args.system_prompt,
-                    generations=self.args.generations,
-                    log_file_path=str(LOG_DIR / "api_cost.jsonl")
-                )
-
-                for vote in self.parse_generations(generations):
-                    if vote == 0:
-                        votes_a[i, j] += 1
-                    elif vote == 1:
-                        votes_b[i, j] += 1
-                        
-        return self._post_call(examples, indices, texts, n, votes_a, votes_b, predictions)
 
     def __call__(self, examples, indices):
-        texts, caller, num_tokens, n, votes_a, votes_b, predictions = self._pre_call(
-            examples, indices
-        )
+        cache_hit, pre_call_output = self._pre_call(examples, indices)
+        if cache_hit:
+            cached_data = pre_call_output
+            if not self.args.flat_output_format:
+                return {
+                    **cached_data,
+                    "examples": [examples],
+                }
+            else:
+                return cached_data
+        else:
+            texts, caller, num_tokens, n, votes_a, votes_b, predictions = (
+                pre_call_output
+            )
 
+        probs = np.full((2, n, n), fill_value=-100.0)
         for i in range(n):
             for j in range(n):
                 if i == j:
@@ -153,22 +213,44 @@ class Comparator:
                     label_a=self.args.labels[0],
                     label_b=self.args.labels[1],
                 )
+                if self.args.logprobs:
+                    out_probs = query_model_logprobs(
+                        prompt,
+                        caller,
+                        system_prompt=self.args.system_prompt,
+                        log_file_path=str(LOG_DIR / "api_cost.jsonl"),
+                        retries=5,
+                    )
+                    probs[:, i, j] = np.array(out_probs)
+                else:
+                    generations = query_model(
+                        prompt,
+                        caller,
+                        system_prompt=self.args.system_prompt,
+                        generations=self.args.generations,
+                    )
 
-                generations = query_model(
-                    prompt,
-                    caller,
-                    system_prompt=self.args.system_prompt,
-                    generations=self.args.generations,
-                )
-
-                for vote in self.parse_generations(generations):
-                    if vote == 0:
-                        votes_a[i, j] += 1
-                    elif vote == 1:
-                        votes_b[i, j] += 1
-        return self._post_call(examples, indices, texts, n, votes_a, votes_b, predictions)
+                    for vote in self.parse_generations(generations):
+                        if vote == 0:
+                            votes_a[i, j] += 1
+                        elif vote == 1:
+                            votes_b[i, j] += 1
+        return self._post_call(
+            examples, indices, texts, n, votes_a, votes_b, predictions, probs
+        )
 
     def _pre_call(self, examples, indices):
+        cache_file = (
+            self.cache_dir / f"cache_{'-'.join(str(idx) for idx in indices)}.pkl"
+        )
+        if cache_file.exists():
+            with open(cache_file, "rb") as f:
+                cached_data = pickle.load(f)
+            probs = cached_data["average"]
+            n_nodata = int((np.array(probs) < 0).sum())
+            if n_nodata == len(probs[0]):
+                return True, cached_data
+
         num_tokens = self.sample_num_tokens(indices)
 
         if self.args.token_field in examples:
@@ -191,26 +273,39 @@ class Comparator:
         votes_b = np.zeros((n, n), dtype=np.int32)
         predictions = np.full((n, n), -100, dtype=np.float32)
         caller = get_caller(self.args.model)
+        # caller = self.args.model
 
-        return texts, caller, num_tokens, n, votes_a, votes_b, predictions
+        return False, (texts, caller, num_tokens, n, votes_a, votes_b, predictions)
 
-    def _post_call(self, examples, indices, texts, n, votes_a, votes_b, predictions):
-        np.divide(
-            votes_b,
-            votes_a + votes_b,
-            out=predictions,
-            where=votes_a + votes_b > self.args.generations // 2,
-        )
-        calibrated_predictions = np.where(
-            (predictions != -100) & (predictions.T != -100),
-            (predictions + (1 - predictions.T)) / 2,
-            -100,
-        )
+    def _post_call(
+        self, examples, indices, texts, n, votes_a, votes_b, predictions, probs
+    ):
+        if self.args.logprobs:
+            calibrated_predictions = np.full((n, n), fill_value=-100.0)
+            for i in range(n):
+                for j in range(n):
+                    if i != j:
+                        calibrated_predictions[i, j] = (
+                            probs[1, i, j] + probs[0, j, i]
+                        ) / 2
+
+        else:
+            np.divide(
+                votes_b,
+                votes_a + votes_b,
+                out=predictions,
+                where=votes_a + votes_b > self.args.generations // 2,
+            )
+            calibrated_predictions = np.where(
+                (predictions != -100) & (predictions.T != -100),
+                (predictions + (1 - predictions.T)) / 2,
+                -100,
+            )
 
         if not self.args.flat_output_format:
-            return {
-                "indices": [indices],
+            out = {
                 "examples": [examples],
+                "indices": [indices],
                 "texts": [texts],
                 "votes_a": [votes_a.tolist()],
                 "votes_b": [votes_b.tolist()],
@@ -218,7 +313,7 @@ class Comparator:
             }
         else:
             indices_a, indices_b = np.where(np.triu(np.ones((n, n)), k=1))
-            return {
+            out = {
                 "index_a": indices_a,
                 "index_b": indices_b,
                 "texts_a": [texts[i] for i in indices_a],
@@ -231,6 +326,13 @@ class Comparator:
                     indices_a, indices_b
                 ].tolist(),
             }
+        cache_file = (
+            self.cache_dir / f"cache_{'-'.join(str(idx) for idx in indices)}.pkl"
+        )
+        cache_out = {key: val for key, val in out.items() if key not in ["examples"]}
+        with open(cache_file, "wb") as f:
+            pickle.dump(cache_out, f)
+        return out
 
     def apply(self, dataset):
         if self.args.num_examples_proportion is not None:

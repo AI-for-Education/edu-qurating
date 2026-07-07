@@ -1,0 +1,8 @@
+project_name: "Content Curation"
+droplet_name: "cc-6000adax"
+size_slug: "gpu-6000adax1-48gb"
+image: "214151830"
+ssh_keys:
+  [
+    "3f:7b:15:32:65:f7:8d:7e:b5:1d:10:83:a6:d9:e4:2f"
+  ]
