@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from datasets import Dataset
 from dotenv import load_dotenv
 
-from qr_scorer import QuratingScorer
+from qurating.scoring_projects.fwe_fortified.qr_scorer import QuratingScorer
 
 load_dotenv(override=True)
 

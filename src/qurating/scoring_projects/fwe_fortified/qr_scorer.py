@@ -2,15 +2,15 @@ from pathlib import Path
 
 from datasets import Dataset
 
-from qurating.inference import ModelAnnotator, TokenizeAndChunk
-from qurating.scoring_projects.fwe_fortified.model_manager import QuratingModelManager
+from ...inference import ModelAnnotator, TokenizeAndChunk
+from .model_manager import QuratingModelManager
 
 
 class QuratingScorer:
     def __init__(
         self,
         base_model: str = "gemma-3-4b",
-        models_types: str | list[str] | None = None,
+        model_types: str | list[str] | None = None,
         annotator_batch_size: int = 500,
         text_field: str = "text",
     ):
@@ -22,8 +22,8 @@ class QuratingScorer:
         self.modman = QuratingModelManager()
         self.modman.download_all(base_models=base_model)
 
-        if models_types is None:
-            model_types = self.modman.model_types(base_model)
+        if model_types is None:
+            model_types = list(self.modman.model_types(base_model))
         elif isinstance(model_types, str):
             model_types = [model_types]
         if not all(
@@ -31,7 +31,7 @@ class QuratingScorer:
             for model_type in model_types
         ):
             raise ValueError(
-                f"model_types contains unsupported values. Must be in {self.modman.model_types(base_model)}"
+                f"model_types contains unsupported values. Must be in {list(self.modman.model_types(base_model))}"
             )
         self.annotators = {
             model_type: ModelAnnotator(
@@ -83,6 +83,10 @@ class QuratingScorer:
     @property
     def text_field(self):
         return self._text_field
+
+    @property
+    def labels(self):
+        return self.modman.labels
 
     @text_field.setter
     def text_field(self, value: str):
