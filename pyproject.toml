@@ -52,6 +52,12 @@ dependencies = [
     "jsonlines>=4.0.0",
     "s5cmd>=0.3.3",
     "timm>=1.0.27",
+    "statsmodels>=0.14.6",
+    "scikit-learn>=1.9.0",
+    "datashader>=0.19.1",
+    "holoviews>=1.23.1",
+    "hvplot>=0.12.2",
+    "jupyter-bokeh>=4.1.0",
 ]
 
 
