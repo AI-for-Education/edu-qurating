@@ -86,7 +86,13 @@ class QuratingScorer:
 
     @property
     def labels(self):
-        return self.modman.labels
+        if self.modman.local_checkpoints_available:
+            return self.modman.labels
+        else:
+            labels = {}
+            for model_type, annotator in self.annotators.items():
+                labels[model_type] = annotator.labels
+            return labels
 
     @text_field.setter
     def text_field(self, value: str):

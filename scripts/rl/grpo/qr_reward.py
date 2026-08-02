@@ -177,6 +177,17 @@ class QuratingReward:
             tokenizer.text_field = value
         self._text_field = value
 
+    @property
+    def labels(self):
+        if self.endpoint is not None:
+            labels_endpoint = "/".join(self.endpoint.split("/")[:-1]) + "/labels"
+            response = requests.get(labels_endpoint)
+            assert response.status_code == 200
+            print(json.loads(response.content.decode("utf-8")))
+            return json.loads(response.content.decode("utf-8"))["labels"]
+        else:
+            raise NotImplementedError("endpoint must be provided to return labels")
+
     @staticmethod
     def _load_dataset(dataset_file):
         parquetf = Path(dataset_file).with_suffix(".parquet")

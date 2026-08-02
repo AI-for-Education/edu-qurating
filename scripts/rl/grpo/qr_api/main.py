@@ -38,3 +38,9 @@ async def score(body: ScoreBody):
         scores_json = scores.to_dict()
 
     return JSONResponse(status_code=200, content={"scores": scores_json})
+
+
+@app.get("/labels")
+async def labels():
+    labels = qr_scorer.labels
+    return JSONResponse(status_code=200, content={"labels": labels})
