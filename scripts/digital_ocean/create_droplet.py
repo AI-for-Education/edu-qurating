@@ -42,7 +42,11 @@ def instantiate_manager(target_project_name: str, verbose: bool = True):
             print(snapshot)
         print("\nImages:")
         for image in droplet_images:
-            if "1-Click".lower() in image.name.lower():
+            if (
+                "1-Click".lower() in image.name.lower()
+                or "GPU" in image.name
+                or "AI/ML" in image.name
+            ):
                 print(image)
         print()
 
