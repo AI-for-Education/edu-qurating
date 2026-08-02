@@ -410,7 +410,7 @@ instruction_following/test10:
       - name: core_ed
         spec:
           core_ed:
-            pedagogical_structure: 0.1
+            pedagogical_structure: 1
             lesson_engagement: 0.25
             factual_accuracy: 1
         score_cap: [null, 12.0]
