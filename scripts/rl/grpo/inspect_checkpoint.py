@@ -292,6 +292,16 @@ test_configs = {
         "chat_template": "qwen-3",
         "group_idx": 0,
     },
+    "instruction_following/test11": {
+        "description": "core_ed-flteach_all-instruction_following",
+        "checkpoints": [
+            "instruction_following/test11/checkpoint-1000",
+            "instruction_following/test11/checkpoint-2000",
+        ],
+        "system_prompt": "/flteacher",
+        "chat_template": "qwen-3",
+        "group_idx": 0,
+    },
     # "instruction_following_128/test1": {
     #     "description": "core_ed_reduced-systematic_phonics-instruction_following_rank-128",
     #     "checkpoints": [
