@@ -64,7 +64,7 @@ if [ $num_nodes -gt 1 ]; then
     --rdzv-endpoint=$master_addr:56321 \
     --nnodes=$num_nodes \
     --nproc-per-node=$num_gpus \
-    -m qurating.test_train"
+    -m qurating.run_train"
 else
     master_port=$(comm -23 <(seq 49152 65535 | sort) <(ss -Htan | awk '{print $4}' | cut -d':' -f2 | sort -u) | shuf | head -n 1)
     master_port=${master_port:-56321}
@@ -75,7 +75,7 @@ else
     --rdzv-endpoint=localhost:$master_port \
     --nnodes=1 \
     --nproc-per-node=$num_gpus \
-    -m qurating.test_train"
+    -m qurating.run_train"
 fi
 
 export OMP_NUM_THREADS=$num_gpus
