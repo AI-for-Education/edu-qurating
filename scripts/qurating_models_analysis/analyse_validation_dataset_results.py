@@ -95,8 +95,8 @@ def calc_fk(text):
 
 
 # %%
-# dataset_name = "bottom_up_sample_english_markdown.parquet"
-dataset_name = "cosmopedia-v2_sample_50000.parquet"
+dataset_name = "bottom_up_sample_english_markdown.parquet"
+# dataset_name = "cosmopedia-v2_sample_50000.parquet"
 
 dataset_file = VALIDATION_DATA_DATASETS_DIR / dataset_name
 results_files = VALIDATION_DATA_RESULTS_DIR.rglob(f"*{dataset_name}")
