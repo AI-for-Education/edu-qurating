@@ -40,10 +40,10 @@ run_names = [
 s5cmd_path = str(ROOT / ".venv/bin/s5cmd")
 CHECKPOINTS_BASE = DATA_DIR / "grpo_checkpoints"
 
-run_names = [d for d in CHECKPOINTS_BASE.glob("*") if d.is_dir()]
+run_names = [d.relative_to(checkpoint_dir_local) for d in CHECKPOINTS_BASE.glob("*") if d.is_dir()]
 print(run_names)
 for run_name in run_names:
     cmd = [s5cmd_path, "--json"]
-    cmd += ["cp", "-s", "-u", "-sp"]
+    cmd += ["cp", "-n", "-s", "-u", "-sp"]
     cmd += [str(checkpoint_dir_local / f"{run_name}/*"), f"{checkpoints_dir}{run_name}/"]
     subprocess.run(cmd)

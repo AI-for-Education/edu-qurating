@@ -92,46 +92,46 @@ def parse_generated(generated, test_config, tokenizer):
 
 # %%
 test_configs = {
-    # "test1": {
-    #     "description": "core_ed-fl_teacher",
-    #     "checkpoints": [
-    #         "test1/outputs/checkpoint-1000",
-    #         "test1/outputs/checkpoint-2000",
-    #     ],
-    #     "system_prompt": "/flteacher",
-    #     "chat_template": "qwen-3",
-    #     "group_idx": 0,
-    # },
-    # "test2": {
-    #     "description": "core_ed-fl_teacher-no_ed_level",
-    #     "checkpoints": [
-    #         "test2/outputs/checkpoint-1000",
-    #         "test2/outputs/checkpoint-2000",
-    #     ],
-    #     "system_prompt": "/flteacher",
-    #     "chat_template": "qwen-3",
-    #     "group_idx": 0,
-    # },
-    # "test3": {
-    #     "description": "core_ed-fl_teacher-no_ed_level-length_target",
-    #     "checkpoints": [
-    #         "test3/outputs/checkpoint-1000",
-    #         "test3/outputs/checkpoint-2000",
-    #     ],
-    #     "system_prompt": "/flteacher",
-    #     "chat_template": "qwen-3",
-    #     "group_idx": 0,
-    # },
-    # "test4": {
-    #     "description": "core_ed_reduced-fl_teacher-no_ed_level-length_target",
-    #     "checkpoints": [
-    #         "test4/outputs/checkpoint-1000",
-    #         "test4/outputs/checkpoint-2000",
-    #     ],
-    #     "system_prompt": "/flteacher",
-    #     "chat_template": "qwen-3",
-    #     "group_idx": 0,
-    # },
+    "test1": {
+        "description": "core_ed-fl_teacher",
+        "checkpoints": [
+            "test1/outputs/checkpoint-1000",
+            "test1/outputs/checkpoint-2000",
+        ],
+        "system_prompt": "/flteacher",
+        "chat_template": "qwen-3",
+        "group_idx": 0,
+    },
+    "test2": {
+        "description": "core_ed-fl_teacher-no_ed_level",
+        "checkpoints": [
+            "test2/outputs/checkpoint-1000",
+            "test2/outputs/checkpoint-2000",
+        ],
+        "system_prompt": "/flteacher",
+        "chat_template": "qwen-3",
+        "group_idx": 0,
+    },
+    "test3": {
+        "description": "core_ed-fl_teacher-no_ed_level-length_target",
+        "checkpoints": [
+            "test3/outputs/checkpoint-1000",
+            "test3/outputs/checkpoint-2000",
+        ],
+        "system_prompt": "/flteacher",
+        "chat_template": "qwen-3",
+        "group_idx": 0,
+    },
+    "test4": {
+        "description": "core_ed_reduced-fl_teacher-no_ed_level-length_target",
+        "checkpoints": [
+            "test4/outputs/checkpoint-1000",
+            "test4/outputs/checkpoint-2000",
+        ],
+        "system_prompt": "/flteacher",
+        "chat_template": "qwen-3",
+        "group_idx": 0,
+    },
     "test5": {
         "description": "core_ed_reduced-phonological_awareness-length_target",
         "checkpoints": [
@@ -297,6 +297,16 @@ test_configs = {
         "checkpoints": [
             "instruction_following/test11/checkpoint-1000",
             "instruction_following/test11/checkpoint-2000",
+        ],
+        "system_prompt": "/flteacher",
+        "chat_template": "qwen-3",
+        "group_idx": 0,
+    },
+    "instruction_following/test12": {
+        "description": "instruction_following",
+        "checkpoints": [
+            "instruction_following/test12/checkpoint-1000",
+            "instruction_following/test12/checkpoint-2000",
         ],
         "system_prompt": "/flteacher",
         "chat_template": "qwen-3",

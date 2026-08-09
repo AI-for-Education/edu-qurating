@@ -29,9 +29,9 @@ if not hasattr(PreTrainedTokenizerBase, "all_special_tokens_extended"):
 load_dotenv(override=True)
 register_models(ROOT / "custom_models.yaml")
 
-USE_CFG = "qwen3/test4"
+USE_CFG = "instruction_following/test12"
 NUM_GENERATIONS = 2
-PER_DEVICE_TRAIN_BATCH_SIZE = 4
+PER_DEVICE_TRAIN_BATCH_SIZE = 2
 USE_WANDB = True
 
 HERE = Path(__file__).resolve().parent
@@ -253,7 +253,7 @@ def preset_score_specs(preset_label, weight):
 # NOTE: Update - changed this to always be False. Using log completions instead
 verbose = False
 qr_reward_funs = {}
-for reward_cfg in cfg["reward"]["qurating"]:
+for reward_cfg in cfg["reward"].get("qurating", []):
     name = reward_cfg["name"]
     score_cap = reward_cfg["score_cap"]
     if score_cap[0] is None:
@@ -280,7 +280,7 @@ for reward_cfg in cfg["reward"]["qurating"]:
     qr_reward_funs[name] = reward_fun
 
 extra_reward_funs = {
-    name: extra_functions[name] for name in cfg["reward"]["extra_functions"]
+    name: extra_functions[name] for name in cfg["reward"].get("extra_functions", [])
 }
 
 all_reward_funs = dict(chain(qr_reward_funs.items(), extra_reward_funs.items()))

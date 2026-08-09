@@ -436,6 +436,15 @@ instruction_following/test11:
         score_cap: [null, 12.0]
     extra_functions:
       - correctness_reward
+instruction_following/test12:
+  base_model: "unsloth/Qwen3-4B-Base"
+  chat_template_name: "qwen-3"
+  lora_rank: 32
+  dataset: original
+  reward:
+    extra_functions:
+      - correctness_reward
+
 
 ### Fourth stage of testing. New dataset designed to allow for individual
 ### scoring for each item (interleaved scoring)

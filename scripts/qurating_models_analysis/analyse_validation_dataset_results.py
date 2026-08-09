@@ -50,8 +50,36 @@ MODEL_TYPES = {
     "FLN_teacher-facing": None,
 }
 
+DATASET_MAPPING = {
+    "bottom_up": "bottom_up_sample_english_markdown.parquet",
+    "cosmopedia": "cosmopedia-v2_sample_50000.parquet"
+}
+
+DATASET_LABEL = "bottom_up"
+
 # BASE_MODEL = "Qwen3-Reranker-4B-seq-cls"
 BASE_MODEL = "gemma-3-4b-pt"
+
+LABEL_MAPPING = {
+    "education_level_average": "Overall education level",
+    "education_level_primary_average": "Primary-level suitability",
+    "education_level_secondary_average": "Secondary-level suitability",
+    "factual_accuracy_average": "Factual accuracy",
+    "lesson_engagement_average": "Lesson engagement",
+    "pedagogical_structure_average": "Pedagogical structure",
+    ###
+    "1_oral_language_vocabulary_average": "Oral language / vocab.",
+    "2_phonological_awareness_average": "Phonoligical awareness",
+    "3_systematic_phonics_average": "Systematic phonics",
+    "4_reading_fluency_average": "Reading fluency",
+    "5_reading_comprehension_average": "Reading comprehension",
+    "6_writing_expression_average": "Writing expression",
+    "7_engagement_relevance_average": "Engagement / relevance",
+    ###
+    "6_writing_encoding_average": "Writing / encoding",
+    "7_pedagogical_quality_average": "Pedagogical quality",
+}
+
 
 
 def map_education_level(level_string, dataset_name):
@@ -95,8 +123,7 @@ def calc_fk(text):
 
 
 # %%
-dataset_name = "bottom_up_sample_english_markdown.parquet"
-# dataset_name = "cosmopedia-v2_sample_50000.parquet"
+dataset_name = DATASET_MAPPING[DATASET_LABEL]
 
 dataset_file = VALIDATION_DATA_DATASETS_DIR / dataset_name
 results_files = VALIDATION_DATA_RESULTS_DIR.rglob(f"*{dataset_name}")
@@ -151,11 +178,15 @@ for mod_type in MODEL_TYPES:
 
         # sns.boxplot(x=x, y=y, hue=x, whis=[5, 95], width=0.6, ax=axs[i])
         sns.violinplot(x=y, y=x, hue=x, ax=ax, orient="h", legend=False)
-        sns.stripplot(
-            x=y, y=x, ax=ax, size=2, jitter=0.08, orient="h", color=[0, 0, 0, 0.1]
-        )
+        # sns.stripplot(
+        #     x=y, y=x, ax=ax, size=2, jitter=0.08, orient="h", color=[0, 0, 0, 0.1]
+        # )
         # sns.swarmplot(x=y, y=x, ax=axs[i], size=1, orient="h", color=[0, 0, 0, 1])
-        ax.set_title(" ".join(model_var.split("_")[:-1]))
+        if model_var in LABEL_MAPPING:
+            title = LABEL_MAPPING[model_var]
+        else:
+            title = " ".join(model_var.split("_")[:-1])
+        ax.set_title(title)
         ax.set_xlabel("Model Score")
         if i == 0:
             ax.set_ylabel("Education Level (Scrape metadata)")
@@ -164,7 +195,7 @@ for mod_type in MODEL_TYPES:
             ax.set_yticks([], [])
 
     fig.savefig(
-        FIGURES_DIR / f"bottom_up_dataset_comparison_education-level_{mod_type}.png",
+        FIGURES_DIR / f"{DATASET_LABEL}_dataset_comparison_education-level_{mod_type}.svg",
         dpi=300,
         bbox_inches="tight",
     )
@@ -201,20 +232,24 @@ for mod_type in MODEL_TYPES:
 
         # sns.boxplot(x=x, y=y, hue=x, whis=[5, 95], width=0.6, ax=axs[i])
         sns.violinplot(x=y, y=x, hue=x, ax=ax, orient="h", legend=False)
-        sns.stripplot(
-            x=y, y=x, ax=ax, size=2, jitter=0.08, orient="h", color=[0, 0, 0, 0.1]
-        )
+        # sns.stripplot(
+        #     x=y, y=x, ax=ax, size=2, jitter=0.08, orient="h", color=[0, 0, 0, 0.1]
+        # )
         # sns.swarmplot(x=y, y=x, ax=axs[i], size=1, orient="h", color=[0, 0, 0, 1])
-        ax.set_title(" ".join(model_var.split("_")[:-1]))
+        if model_var in LABEL_MAPPING:
+            title = LABEL_MAPPING[model_var]
+        else:
+            title = " ".join(model_var.split("_")[:-1])
+        ax.set_title(title)
         ax.set_xlabel("Model Score")
         if i == 0:
             ax.set_ylabel("Material type (Scrape metadata)")
             # ax.set_yticklabels(np.unique(x))
         else:
             ax.set_yticks([], [])
-
+    
     fig.savefig(
-        FIGURES_DIR / f"bottom_up_dataset_comparison_material-type_{mod_type}.png",
+        FIGURES_DIR / f"{DATASET_LABEL}_dataset_comparison_material-type_{mod_type}.svg",
         dpi=300,
         bbox_inches="tight",
     )
