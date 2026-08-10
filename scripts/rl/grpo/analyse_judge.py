@@ -1,11 +1,13 @@
 # %%
 from pathlib import Path
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import seaborn as sns
 import yaml
 
-from qurating.constants import DATA_DIR
+from qurating.constants import DATA_DIR, FIGURES_DIR
 
 HERE = Path(__file__).resolve().parent
 DATA_DIR_GRPO_EVALS = DATA_DIR / "grpo_evals"
@@ -22,7 +24,7 @@ prompt_dimensions_df = pd.read_csv(prompt_dimensions_csv)
 
 # %%
 unq_variant_labels = sorted(
-    set([lab for ab in ["a", "b"] for lab in judge_df[f"variant_{ab}"].unique()])
+    {lab for ab in ["a", "b"] for lab in judge_df[f"variant_{ab}"].unique()}
 )
 
 cfg_map = {
@@ -47,10 +49,10 @@ variable_maps["reward"] = {key: val.get("reward", {}) for key, val in cfg_map.it
 variable_maps["reward_descriptor"] = {}
 for key, val in cfg_map.items():
     qr_reward_list = val.get("reward", {}).get("qurating", [])
-    qrr_descr = "-".join(sorted(qrr["name"] for qrr in qr_reward_list))
+    qrr_descr = "-".join(sorted(qrr["name"] for qrr in qr_reward_list)).strip("-")
     efn_list = sorted(val.get("reward", {}).get("extra_functions", []))
-    extra_descr = "-".join(efn_list)
-    variable_maps["reward_descriptor"][key] = "-".join([qrr_descr, extra_descr])
+    extra_descr = "-".join(efn_list).strip("-")
+    variable_maps["reward_descriptor"][key] = f"{qrr_descr}-{extra_descr}".strip("-")
 
 variable_maps["reward_descriptor_fl"] = {}
 for key, val in cfg_map.items():
@@ -65,7 +67,7 @@ for key in cfg_map:
     ckp_str = key.split("/")[-1].split("-")[-1]
     try:
         variable_maps["checkpoint"][key] = int(ckp_str)
-    except:
+    except:  # noqa: E722
         variable_maps["checkpoint"][key] = None
 
 # %%
@@ -119,7 +121,9 @@ print()
 print("Quality:")
 print("*" * 50)
 print(
-    judge_df.groupby(["variant_b_reward_descriptor", "variant_b_checkpoint"])
+    judge_df.groupby(
+        ["variant_b", "variant_b_reward_descriptor", "variant_b_checkpoint"]
+    )
     .apply(win_rate, comparator="base_model", comparison="quality")
     .sort_values(ascending=False)
 )
@@ -129,7 +133,9 @@ print()
 print("Instruction following:")
 print("*" * 50)
 print(
-    judge_df.groupby(["variant_b_reward_descriptor", "variant_b_checkpoint"])
+    judge_df.groupby(
+        ["variant_b", "variant_b_reward_descriptor", "variant_b_checkpoint"]
+    )
     .apply(win_rate, comparator="base_model", comparison="follow")
     .sort_values(ascending=False)
 )
@@ -144,7 +150,9 @@ print()
 print("Quality:")
 print("*" * 50)
 print(
-    judge_df.groupby(["variant_b_reward_descriptor", "variant_b_checkpoint"])
+    judge_df.groupby(
+        ["variant_b", "variant_b_reward_descriptor", "variant_b_checkpoint"]
+    )
     .apply(win_rate, comparator="Good Response", comparison="quality")
     .sort_values(ascending=False)
 )
@@ -154,10 +162,116 @@ print()
 print("Instruction following:")
 print("*" * 50)
 print(
-    judge_df.groupby(["variant_b_reward_descriptor", "variant_b_checkpoint"])
+    judge_df.groupby(
+        ["variant_b", "variant_b_reward_descriptor", "variant_b_checkpoint"]
+    )
     .apply(win_rate, comparator="Good Response", comparison="follow")
     .sort_values(ascending=False)
 )
+
+# %%
+plot_variant_b = {
+    "Answer-structure reward": "instruction_following/test12/checkpoint-1000",
+    "Edu-Qurating reward\n(Core-Ed & FLT)": "test2/checkpoint-2000",
+    "Combined reward\nEdu-Qurating (Core-Ed & FLT)\n and Answer-structure": "instruction_following/test9/checkpoint-2000",
+    "Combined reward\nEdu-Qurating (Core-Ed)\nand Answer-structure": "instruction_following/test10/checkpoint-1000",
+}
+
+comparison_info = {
+    "quality": "Pedagogical quality",
+    "follow": "Instruction following",
+}
+
+plot_df_list = []
+jquery_a = "variant_a == 'base_model'"
+jquery_b = " | ".join(f"variant_b == '{val}'" for val in plot_variant_b.values())
+jquery = f"{jquery_a} & ({jquery_b})"
+for comparison, comparison_label in comparison_info.items():
+    plot_df = judge_df.query(jquery)
+    plot_df["Win-Rate (%)"] = (plot_df[f"{comparison}_winner"] == "variant_b") * 100
+    plot_df["Comparison"] = comparison_label
+    plot_df_list.append(plot_df)
+
+plot_df = pd.concat(plot_df_list, axis=0, ignore_index=True)
+
+fig, ax = plt.subplots(figsize=(8, 6))
+
+with sns.color_palette("Set2"):
+    sns.barplot(
+        plot_df,
+        y="variant_b",
+        x="Win-Rate (%)",
+        hue="Comparison",
+        ax=ax,
+        order=list(plot_variant_b.values()),
+        errorbar="se",
+        capsize=0.1,
+        orient="h",
+    )
+
+ax.set_xlim(0, 100)
+
+ax.set_yticklabels(list(plot_variant_b), rotation=0, ha="right", rotation_mode="anchor", )
+ax.set_ylabel("Reward function", fontweight="bold")
+ax.set_xlabel("Win-rate (%)", fontweight="bold")
+# ax.tick_params("x", rotation=45)
+
+ax.axvline(50, color="black", linestyle="--")
+ax.annotate("Chance level", xy=[35, -0.29])
+
+for container in ax.containers:
+    ax.bar_label(container, fmt="{:.2f}%", padding=25)
+
+fig.savefig(FIGURES_DIR / "grpo_main_comparison_v2.png", dpi=300, bbox_inches="tight")
+
+# %%
+plot_variant_b = {
+    "Oral language / vocabulary": "test10/checkpoint-2000",
+    "Phonological awareness": "test5/checkpoint-1000",
+    "Systematic phonics": "test6/checkpoint-2000",
+    "Reading fluency": "test7/checkpoint-1000",
+    "Reading comprehension": "test8/checkpoint-1000",
+    "Writing / encoding": "test9/checkpoint-1000",
+    "Qurating combined": "test2/checkpoint-2000",
+}
+
+comparison_info = {
+    "quality": "Pedagogical quality",
+    "follow": "Instruction following",
+}
+
+plot_df_list = []
+jquery_a = "variant_a == 'base_model'"
+jquery_b = " | ".join(f"variant_b == '{val}'" for val in plot_variant_b.values())
+jquery = f"{jquery_a} & ({jquery_b})"
+for comparison, comparison_label in comparison_info.items():
+    plot_df = judge_df.query(jquery)
+    plot_df["Win-Rate (%)"] = (plot_df[f"{comparison}_winner"] == "variant_b") * 100
+    plot_df["Comparison"] = comparison_label
+    plot_df_list.append(plot_df)
+
+plot_df = pd.concat(plot_df_list, axis=0, ignore_index=True)
+
+fig, ax = plt.subplots(figsize=(10, 7))
+
+with sns.color_palette("husl", 2):
+    im = sns.barplot(
+        plot_df,
+        x="variant_b",
+        y="Win-Rate (%)",
+        hue="Comparison",
+        ax=ax,
+        order=list(plot_variant_b.values()),
+        errorbar="se",
+    )
+ax.set_xticklabels(list(plot_variant_b), rotation=45, ha="right", rotation_mode="anchor")
+ax.set_xlabel("Reward function")
+# ax.tick_params("x", rotation=45)
+
+ax.axhline(50, color="black", linestyle="--")
+ax.annotate("Chance level", xy=[-0.48, 51])
+
+fig.savefig(FIGURES_DIR / "grpo_FL_comparison.png", dpi=300, bbox_inches="tight")
 
 # %%
 mygb = judge_df.groupby(
@@ -193,14 +307,16 @@ for (
     #     continue
     if any(checkpoint != 2000 for checkpoint in (a_checkpoint, b_checkpoint)):
         continue
-    if any("length_target" in reward_descr for reward_descr in (a_reward, b_reward)): # type: ignore
+    if any("length_target" in reward_descr for reward_descr in (a_reward, b_reward)):  # type: ignore
         continue
-    if any("core_ed" not in reward_descr for reward_descr in (a_reward, b_reward)): # type: ignore
+    if any("core_ed" not in reward_descr for reward_descr in (a_reward, b_reward)):  # type: ignore
         continue
     if a_reward == b_reward:
         continue
     # print(a_checkpoint, b_checkpoint)
-    for variant, reward_descr in zip(("variant_a", "variant_b"), (a_reward_fl, b_reward_fl)):
+    for variant, reward_descr in zip(
+        ("variant_a", "variant_b"), (a_reward_fl, b_reward_fl)
+    ):
         if reward_descr in subdf.columns:
             filt = np.array(subdf[reward_descr])
             win_logical = np.array(subdf[f"{comparison}_winner"] == variant)
@@ -209,7 +325,9 @@ for (
             res_list.append(
                 {
                     "target_variant": variant,
-                    "target_reward": a_reward_fl if variant == "variant_a" else b_reward_fl,
+                    "target_reward": (
+                        a_reward_fl if variant == "variant_a" else b_reward_fl
+                    ),
                     "comparator_reward": (
                         a_reward_fl if variant == "variant_b" else b_reward_fl
                     ),

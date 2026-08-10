@@ -1,20 +1,19 @@
 # %%
 import multiprocessing
 
-import pandas as pd
-import numpy as np
 import matplotlib.pyplot as plt
+import nltk
+import numpy as np
+import pandas as pd
 import seaborn as sns
-from scipy.stats import pearsonr
+from joblib import Parallel, delayed
 from readability import Readability
 from readability.exceptions import ReadabilityException
-import nltk
-from joblib import Parallel, delayed
 
 from qurating.constants import (
-    VALIDATION_DATA_RESULTS_DIR,
-    VALIDATION_DATA_DATASETS_DIR,
     FIGURES_DIR,
+    VALIDATION_DATA_DATASETS_DIR,
+    VALIDATION_DATA_RESULTS_DIR,
 )
 
 nltk.download("punkt_tab")
@@ -69,7 +68,7 @@ LABEL_MAPPING = {
     "pedagogical_structure_average": "Pedagogical structure",
     ###
     "1_oral_language_vocabulary_average": "Oral language / vocab.",
-    "2_phonological_awareness_average": "Phonoligical awareness",
+    "2_phonological_awareness_average": "Phonological awareness",
     "3_systematic_phonics_average": "Systematic phonics",
     "4_reading_fluency_average": "Reading fluency",
     "5_reading_comprehension_average": "Reading comprehension",
@@ -260,17 +259,17 @@ print(ncpus)
 
 n_jobs = min(6, max(ncpus - 2, 1))
 
-p = Parallel(n_jobs=n_jobs, backend="loky", verbose=60, batch_size=16)
+p = Parallel(n_jobs=n_jobs, backend="loky", verbose=60, batch_size="auto")
 res = p(delayed(calc_fk)(ft) for ft in dataset_df["full_text"])
 
 fk_scores = np.array(res)
 
-# %%
-fig, ax = plt.subplots()
+# # %%
+# fig, ax = plt.subplots()
 
-y_fk = fk_scores[not_multi_filt & not_nan_filt]
-sns.boxplot(x=y, y=y_fk, hue=y, whis=[5, 95], width=0.6, ax=ax)
-ax.set_ybound([np.nanmin(y_fk), 100])
+# y_fk = fk_scores[not_multi_filt & not_nan_filt]
+# sns.boxplot(x=y, y=y_fk, hue=y, whis=[5, 95], width=0.6, ax=ax)
+# ax.set_ybound([np.nanmin(y_fk), 100])
 
 # %%
 # lowest scoring tertiaries
