@@ -6,9 +6,13 @@ import nltk
 import numpy as np
 import pandas as pd
 import seaborn as sns
+import statsmodels.api as sm
 from joblib import Parallel, delayed
 from readability import Readability
 from readability.exceptions import ReadabilityException
+from sklearn.metrics import r2_score
+from sklearn.model_selection import KFold
+from tqdm import tqdm
 
 from qurating.constants import (
     FIGURES_DIR,
@@ -51,7 +55,7 @@ MODEL_TYPES = {
 
 DATASET_MAPPING = {
     "bottom_up": "bottom_up_sample_english_markdown.parquet",
-    "cosmopedia": "cosmopedia-v2_sample_50000.parquet"
+    "cosmopedia": "cosmopedia-v2_sample_50000.parquet",
 }
 
 DATASET_LABEL = "bottom_up"
@@ -78,7 +82,6 @@ LABEL_MAPPING = {
     "6_writing_encoding_average": "Writing / encoding",
     "7_pedagogical_quality_average": "Pedagogical quality",
 }
-
 
 
 def map_education_level(level_string, dataset_name):
@@ -147,6 +150,69 @@ for rf in results_files:
             break
 
 # %%
+# model_type = "general_educational"
+model_type = "FLN_teacher-facing"
+# model_type = "FLN_student-facing"
+
+ed_level_meta = dataset_df[ED_LEVEL_COLUMN[dataset_name]].apply(
+    map_education_level, dataset_name=dataset_name
+)
+not_multi_filt = ~np.array(ed_level_meta["education_level_numerical_multi"])
+not_nan_filt = ~np.array(ed_level_meta["education_level_numerical"].isna())
+
+usedf = results_dfs[model_type].loc[not_multi_filt & not_nan_filt]
+use_classes = ed_level_meta.loc[
+    not_multi_filt & not_nan_filt, "education_level_numerical"
+]
+
+score_cols = [col for col in usedf.columns if col.endswith("_average")]
+y = use_classes.to_numpy()
+
+### CV r-squared (overall)
+seed = 734635346
+n_folds = 5
+kf = KFold(n_splits=n_folds, shuffle=True, random_state=seed)
+oof_predictions = np.zeros(len(y))
+
+X = sm.add_constant(usedf[score_cols].to_numpy())
+for train_idx, val_idx in tqdm(kf.split(X), total=n_folds):
+    X_train, X_val = X[train_idx], X[val_idx]
+    y_train, y_val = y[train_idx], y[val_idx]
+
+    model = sm.OLS(y_train, X_train).fit()
+    oof_predictions[val_idx] = model.predict(X_val)
+
+cv_r2 = r2_score(y, oof_predictions)
+
+print(cv_r2)
+print(cv_r2 ** 0.5)
+
+### CV r-squared (leave-in-one-column)
+ndims = len(score_cols)
+
+cv_r2_leave_one_in = np.zeros(ndims)
+
+for leavei in range(ndims):
+    print(f"Leave in dim: {leavei}")
+
+    oof_predictions_leave_one_in = np.zeros(len(y))
+    X = sm.add_constant(usedf[score_cols[leavei]].to_numpy())
+
+    for train_idx, val_idx in tqdm(kf.split(X), total=n_folds):
+        X_train, X_val = X[train_idx], X[val_idx]
+        y_train, y_val = y[train_idx], y[val_idx]
+
+        model = sm.OLS(y_train, X_train).fit()
+        oof_predictions_leave_one_in[val_idx] = model.predict(X_val)
+
+    del X, model, X_train, X_val, y_train, y_val
+
+    cv_r2_leave_one_in[leavei] = r2_score(y, oof_predictions_leave_one_in)
+
+print(cv_r2_leave_one_in)
+print(cv_r2_leave_one_in ** 0.5)
+
+# %%
 """
 Rating distributions split by metadata education level
 """
@@ -194,7 +260,8 @@ for mod_type in MODEL_TYPES:
             ax.set_yticks([], [])
 
     fig.savefig(
-        FIGURES_DIR / f"{DATASET_LABEL}_dataset_comparison_education-level_{mod_type}.svg",
+        FIGURES_DIR
+        / f"{DATASET_LABEL}_dataset_comparison_education-level_{mod_type}.svg",
         dpi=300,
         bbox_inches="tight",
     )
@@ -246,9 +313,10 @@ for mod_type in MODEL_TYPES:
             # ax.set_yticklabels(np.unique(x))
         else:
             ax.set_yticks([], [])
-    
+
     fig.savefig(
-        FIGURES_DIR / f"{DATASET_LABEL}_dataset_comparison_material-type_{mod_type}.svg",
+        FIGURES_DIR
+        / f"{DATASET_LABEL}_dataset_comparison_material-type_{mod_type}.svg",
         dpi=300,
         bbox_inches="tight",
     )
