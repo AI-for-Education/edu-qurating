@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 import yaml
+from matplotlib.ticker import MultipleLocator
 
 from qurating.constants import DATA_DIR, FIGURES_DIR
 
@@ -211,7 +212,12 @@ with sns.color_palette("Set2"):
 
 ax.set_xlim(0, 100)
 
-ax.set_yticklabels(list(plot_variant_b), rotation=0, ha="right", rotation_mode="anchor", )
+ax.set_yticklabels(
+    list(plot_variant_b),
+    rotation=0,
+    ha="right",
+    rotation_mode="anchor",
+)
 ax.set_ylabel("Reward function", fontweight="bold")
 ax.set_xlabel("Win-rate (%)", fontweight="bold")
 # ax.tick_params("x", rotation=45)
@@ -221,6 +227,11 @@ ax.annotate("Chance level", xy=[35, -0.29])
 
 for container in ax.containers:
     ax.bar_label(container, fmt="{:.2f}%", padding=25)
+
+ax.minorticks_on()
+ax.xaxis.set_minor_locator(MultipleLocator(10))
+ax.grid(visible=True, which="major", axis="x", linestyle="-", color="gray")
+ax.grid(visible=True, which="minor", axis="x", linestyle="--")
 
 fig.savefig(FIGURES_DIR / "grpo_main_comparison_v2.png", dpi=300, bbox_inches="tight")
 
@@ -264,7 +275,9 @@ with sns.color_palette("husl", 2):
         order=list(plot_variant_b.values()),
         errorbar="se",
     )
-ax.set_xticklabels(list(plot_variant_b), rotation=45, ha="right", rotation_mode="anchor")
+ax.set_xticklabels(
+    list(plot_variant_b), rotation=45, ha="right", rotation_mode="anchor"
+)
 ax.set_xlabel("Reward function")
 # ax.tick_params("x", rotation=45)
 
