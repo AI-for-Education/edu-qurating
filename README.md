@@ -31,7 +31,7 @@ There are 3 installation paths:
 #### [`scripts/sampling/sample_dataset.py`](scripts/sampling/sample_dataset.py)
 - Script to approximately randomly sample from large fineweb-edu-fortified dataset, described in [Fineweb-Edu sampling](docs/fineweb_edu_sampling.md). This was used to generate the sampled datasets used for **core-ed** model in [Pairwise comparisons](docs/pairwise_comparisons.md)
 #### [`scripts/sampling/sample_dataset_with_scoring.py`](scripts/sampling/sample_dataset_with_scoring.py)
-- Script to approximately randomly sample from large fineweb-edu-fortified dataset while scoring with qurating model at the same time (and filtering by score). This was used to generate sampled datasets that were pre-filtered for core-ed quality and age-relevance to use for [[Pairwise comparisons]] datasets for the **foundational literacy** models.
+- Script to approximately randomly sample from large fineweb-edu-fortified dataset while scoring with qurating model at the same time (and filtering by score). This was used to generate sampled datasets that were pre-filtered for core-ed quality and age-relevance to use for [Pairwise comparisons](docs/pairwise_comparisons.md) datasets for the **foundational literacy** models.
 #### [`scripts/pairwise_comparisons/run_pairwise_comparisons.py`](scripts/pairwise_comparisons/run_pairwise_comparisons.py)
 - Script to run the [Pairwise comparisons](docs/pairwise_comparisons.md) procedure. Inputs to this are the outputs from [Fineweb-Edu sampling](docs/fineweb_edu_sampling.md). Parameters that can be set (as script constants) are:
 	- The following 3 all just control which input dataset to load:
