@@ -4,6 +4,8 @@ Code repository for Edu-QuRating ([paper](https://arxiv.org/abs/2609.09425)).
 
 This initailly started out as a private fork of [QuRating](https://github.com/princeton-nlp/QuRating). The source repo is kept in the folder `upstream` (with history).
 
+Edu-QuRating models on [HuggingFace](https://huggingface.co/collections/AI-for-Education/edu-qurating-models)
+
 ## Installation
 
 We use [uv](https://docs.astral.sh/uv/) for package management.
