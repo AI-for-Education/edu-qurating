@@ -1,12 +1,12 @@
 ---
-license: other
+base_model: google/gemma-3-4b-pt
+license: mit
 library_name: transformers
 pipeline_tag: text-classification
 tags:
 - edu-qurating
 - qurating
 - education
-- foundational-literacy
 - text-scoring
 - sequence-classification
 - reward-model
@@ -15,9 +15,7 @@ tags:
 
 # Edu-QuRating Foundational Literacy Student-Facing Scorer (Gemma 3 4B)
 
-Model repository: `AI-for-Education/qurating-fl-student-gemma-3-4b`
-
-Backbone: Gemma-3-4B-PT
+https://arxiv.org/abs/2609.09425
 
 This model is an Edu-QuRating sequence-classification scorer for learner-facing foundational-literacy text. It takes a text passage as input and outputs one scalar logit for each student-facing literacy criterion. It is intended for ranking, filtering, corpus curation, and reward-modeling experiments, not for text generation.
 
@@ -51,8 +49,7 @@ The loss is binary cross-entropy between this model preference probability and t
 
 | Data and labels | Value | Data and labels | Value |
 | --- | ---: | --- | ---: |
-| Pairwise examples | 200,000 | Source sample size | 500,000 FineWeb-Edu-Fortified rows |
-| Source sample seed | 274,634,520 | Pairwise prompt set | `FLN_student-facing` |
+| Example pairs | 100,000 | Source sample size | 500,000 FineWeb-Edu-Fortified rows |
 | Judge model | `gpt-4.1-mini` | Pairwise judgement mode | token log-probabilities |
 | Judgement excerpt length | 512 tokens | Model max input length | 2,048 tokens |
 
@@ -72,11 +69,63 @@ This model family is separate from the core educational corpus-filtering scorer.
 
 ## How to Use
 
+### Batch inference pipeline with edu-qurating package
+
+Install package from github: https://github.com/AI-for-Education/edu-qurating.  
+Requires `flash-attn>=2.8.3` to run the inference pipline below.
+
+```python
+import json
+
+from datasets import load_dataset, Dataset
+from qurating.inference import ModelAnnotator, TokenizeAndChunk
+
+
+model_name = "AI-for-Education/edu-qurating-fl-student-gemma-3-4b"
+
+device_batch_size = 500
+text_field = "text"
+
+annotator = ModelAnnotator(
+    model_name, labels=None, device_batch_size=device_batch_size
+)
+tokenizer = TokenizeAndChunk(model_name, text_field=text_field)
+
+### Test with the the cosmopedia_v2 dataset.
+### Load as streaming dataset because we only want to take a few rows
+ds = load_dataset(
+    "HuggingFaceTB/smollm-corpus", "cosmopedia-v2", split="train", streaming=True
+)
+
+# get the first 10 rows
+ds_first10 = Dataset.from_list(ds.take(10).to_list())
+
+#################
+## The scoring process is split into 2 stages:
+## 1. tokenize and chunk
+## 2. annotate
+
+# stage 1
+tokenized = ds_first10.map(tokenizer, batched=True)
+
+# stage 2
+keep_columns = [text_field, "audience"]
+remove_columns = [col for col in tokenized.column_names if col not in keep_columns]
+scored = tokenized.map(
+    annotator, batched=True, with_indices=True, remove_columns=remove_columns
+)
+
+# take a look at the items with scores
+print(json.dumps(scored.to_list(), indent=2))
+```
+
+### Call the model directly with pytorch (no auto chunk handling)
+
 ```python
 import torch
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 
-model_name = "AI-for-Education/qurating-fl-student-gemma-3-4b"
+model_name = "AI-for-Education/edu-qurating-fl-student-gemma-3-4b"
 
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 model = AutoModelForSequenceClassification.from_pretrained(
